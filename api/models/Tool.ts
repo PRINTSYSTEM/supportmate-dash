@@ -15,4 +15,4 @@ const ToolSchema = new Schema<ITool>(
   { timestamps: true }
 );
 
-export default mongoose.models.Tool || mongoose.model<ITool>('Tool', ToolSchema);
+export default (mongoose.models.Tool as mongoose.Model<ITool>) || mongoose.model<ITool>('Tool', ToolSchema);

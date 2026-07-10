@@ -27,5 +27,4 @@ const ExamSessionSchema = new Schema<IExamSession>(
   { timestamps: true }
 );
 
-export default mongoose.models.ExamSession ||
-  mongoose.model<IExamSession>('ExamSession', ExamSessionSchema);
+export default (mongoose.models.ExamSession as mongoose.Model<IExamSession>) || mongoose.model<IExamSession>('ExamSession', ExamSessionSchema);

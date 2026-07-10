@@ -14,20 +14,20 @@ async function seed() {
 
   // Clear existing data
   await Promise.all([
-    Admin.deleteMany({}),
-    Tool.deleteMany({}),
-    Seller.deleteMany({}),
-    Key.deleteMany({}),
-    ExamSession.deleteMany({}),
-    Registration.deleteMany({}),
+    (Admin as any).deleteMany({}),
+    (Tool as any).deleteMany({}),
+    (Seller as any).deleteMany({}),
+    (Key as any).deleteMany({}),
+    (ExamSession as any).deleteMany({}),
+    (Registration as any).deleteMany({}),
   ]);
 
   // Admin
   const hashed = await bcrypt.hash('admin123', 10);
-  await Admin.create({ username: 'admin', password: hashed });
+  await (Admin as any).create({ username: 'admin', password: hashed });
 
   // Tools
-  const tools = await Tool.insertMany([
+  const tools = await (Tool as any).insertMany([
     { name: 'Respondus LockDown Browser', version: '2.0.9' },
     { name: 'ExamSoft', version: '3.1.0' },
     { name: 'ProctorU', version: '1.5.2' },
@@ -36,7 +36,7 @@ async function seed() {
   const [t1, t2, t3, t4] = tools;
 
   // Sellers
-  const sellers = await Seller.insertMany([
+  const sellers = await (Seller as any).insertMany([
     { name: 'VN Soft' },
     { name: 'EduKey' },
     { name: 'TechLicense' },
@@ -45,7 +45,7 @@ async function seed() {
   const [s1, s2, s3, s4] = sellers;
 
   // Keys
-  const keys = await Key.insertMany([
+  const keys = await (Key as any).insertMany([
     { keyCode: 'RLB-2026-A001', toolId: t1._id.toString(), type: 'by_term', status: 'available', expirationDate: '2026-06-30' },
     { keyCode: 'RLB-2026-A002', toolId: t1._id.toString(), type: 'by_term', status: 'used', expirationDate: '2026-06-30' },
     { keyCode: 'RLB-DAY-0401', toolId: t1._id.toString(), type: 'by_day', status: 'available', expirationDate: '2026-04-01' },
@@ -59,7 +59,7 @@ async function seed() {
   ]);
 
   // Exam Sessions
-  const sessions = await ExamSession.insertMany([
+  const sessions = await (ExamSession as any).insertMany([
     { date: '2026-04-01', startTime: '08:00', endTime: '10:00', type: 'PE', subjectId: 'CS101', term: 'Spring26', campus: 'Main Campus', studentCount: 45 },
     { date: '2026-04-01', startTime: '13:00', endTime: '15:00', type: 'FE', subjectId: 'MATH201', term: 'Spring26', campus: 'Main Campus', studentCount: 60 },
     { date: '2026-04-02', startTime: '09:00', endTime: '11:00', type: 'PE', subjectId: 'ENG102', term: 'Spring26', campus: 'South Campus', studentCount: 35 },
@@ -71,7 +71,7 @@ async function seed() {
   const [es1, es2, es3, es4, es5, es6, es7] = sessions;
 
   // Registrations
-  await Registration.insertMany([
+  await (Registration as any).insertMany([
     { studentId: 'STU001', customerName: 'Nguyen Van A', subjectId: 'CS101', examSessionId: es1._id.toString(), toolId: t1._id.toString(), keyCode: 'RLB-2026-A002', keyType: 'by_term', sellerId: s1._id.toString(), processStatus: 'done', note: 'Completed successfully' },
     { studentId: 'STU002', customerName: 'Tran Thi B', subjectId: 'CS101', examSessionId: es1._id.toString(), toolId: t2._id.toString(), keyCode: 'ES-DAY-0401', keyType: 'by_day', sellerId: s2._id.toString(), processStatus: 'supporting', note: 'Student needs assistance' },
     { studentId: 'STU003', customerName: 'Le Van C', subjectId: 'MATH201', examSessionId: es2._id.toString(), toolId: null, keyCode: null, keyType: null, sellerId: s1._id.toString(), processStatus: 'pending', note: '' },

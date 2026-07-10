@@ -13,4 +13,4 @@ const SellerSchema = new Schema<ISeller>(
   { timestamps: true }
 );
 
-export default mongoose.models.Seller || mongoose.model<ISeller>('Seller', SellerSchema);
+export default (mongoose.models.Seller as mongoose.Model<ISeller>) || mongoose.model<ISeller>('Seller', SellerSchema);

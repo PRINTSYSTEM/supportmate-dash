@@ -21,4 +21,4 @@ const KeySchema = new Schema<IKey>(
   { timestamps: true }
 );
 
-export default mongoose.models.Key || mongoose.model<IKey>('Key', KeySchema);
+export default (mongoose.models.Key as mongoose.Model<IKey>) || mongoose.model<IKey>('Key', KeySchema);
