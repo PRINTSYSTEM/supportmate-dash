@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
-import { connectDB } from './db';
-import Admin from './models/Admin';
-import Tool from './models/Tool';
-import Seller from './models/Seller';
-import Key from './models/Key';
-import ExamSession from './models/ExamSession';
-import Registration from './models/Registration';
+import { connectDB } from './db.js';
+import Admin from './models/Admin.js';
+import Tool from './models/Tool.js';
+import Seller from './models/Seller.js';
+import Key from './models/Key.js';
+import ExamSession from './models/ExamSession.js';
+import Registration from './models/Registration.js';
 
 async function seed() {
   await connectDB();

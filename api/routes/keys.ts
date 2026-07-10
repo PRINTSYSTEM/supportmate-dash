@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
-import Key from '../models/Key';
-import { AuthRequest, requireAuth } from '../middleware/auth';
+import Key from '../models/Key.js';
+import { AuthRequest, requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 

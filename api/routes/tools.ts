@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
-import Tool from '../models/Tool';
-import { AuthRequest, requireAuth } from '../middleware/auth';
+import Tool from '../models/Tool.js';
+import { AuthRequest, requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 

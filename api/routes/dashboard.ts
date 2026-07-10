@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
-import Registration from '../models/Registration';
-import ExamSession from '../models/ExamSession';
-import { AuthRequest, requireAuth } from '../middleware/auth';
+import Registration from '../models/Registration.js';
+import ExamSession from '../models/ExamSession.js';
+import { AuthRequest, requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 

@@ -1,14 +1,14 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { connectDB } from './db';
-import authRoutes from './routes/auth';
-import registrationRoutes from './routes/registrations';
-import sessionRoutes from './routes/sessions';
-import toolRoutes from './routes/tools';
-import keyRoutes from './routes/keys';
-import sellerRoutes from './routes/sellers';
-import dashboardRoutes from './routes/dashboard';
+import { connectDB } from './db.js';
+import authRoutes from './routes/auth.js';
+import registrationRoutes from './routes/registrations.js';
+import sessionRoutes from './routes/sessions.js';
+import toolRoutes from './routes/tools.js';
+import keyRoutes from './routes/keys.js';
+import sellerRoutes from './routes/sellers.js';
+import dashboardRoutes from './routes/dashboard.js';
 
 const app = express();
 
