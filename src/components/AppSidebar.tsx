@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
 const navItems = [
-  { title: 'Dashboard', path: '/', icon: LayoutDashboard },
+  { title: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { title: 'Registrations', path: '/registrations', icon: ClipboardList },
   { title: 'Exam Sessions', path: '/sessions', icon: Calendar },
   { title: 'Keys', path: '/keys', icon: KeyRound },
