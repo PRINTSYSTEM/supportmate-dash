@@ -6,6 +6,7 @@ import Tool from '../backend/models/Tool.js';
 import Seller from '../backend/models/Seller.js';
 import Key from '../backend/models/Key.js';
 import ExamSession from '../backend/models/ExamSession.js';
+import Subject from '../backend/models/Subject.js';
 import Registration from '../backend/models/Registration.js';
 
 async function seed() {
@@ -15,11 +16,22 @@ async function seed() {
   // Clear existing data
   await Promise.all([
     (Admin as any).deleteMany({}),
+    (Subject as any).deleteMany({}),
     (Tool as any).deleteMany({}),
     (Seller as any).deleteMany({}),
     (Key as any).deleteMany({}),
     (ExamSession as any).deleteMany({}),
     (Registration as any).deleteMany({}),
+  ]);
+
+  // Subjects
+  await (Subject as any).insertMany([
+    { subjectId: 'CS101', name: 'Computer Science 101' },
+    { subjectId: 'MATH201', name: 'Mathematics 201' },
+    { subjectId: 'ENG102', name: 'English 102' },
+    { subjectId: 'PHY301', name: 'Physics 301' },
+    { subjectId: 'BIO201', name: 'Biology 201' },
+    { subjectId: 'CHEM101', name: 'Chemistry 101' },
   ]);
 
   // Admin

@@ -57,4 +57,23 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
   res.json({ admin: req.admin });
 });
 
+router.post('/change-password', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'Current password and new password (min 6 chars) required' });
+    }
+    const admin = await Admin.findById(req.admin!.id);
+    if (!admin) return res.status(404).json({ message: 'Admin not found' });
+    const match = await bcrypt.compare(currentPassword, admin.password);
+    if (!match) return res.status(401).json({ message: 'Current password is incorrect' });
+    admin.password = await bcrypt.hash(newPassword, 10);
+    await admin.save();
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 export default router;

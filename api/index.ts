@@ -8,6 +8,7 @@ import sessionRoutes from '../backend/routes/sessions.js';
 import toolRoutes from '../backend/routes/tools.js';
 import keyRoutes from '../backend/routes/keys.js';
 import sellerRoutes from '../backend/routes/sellers.js';
+import subjectRoutes from '../backend/routes/subjects.js';
 import dashboardRoutes from '../backend/routes/dashboard.js';
 
 const app = express();
@@ -32,6 +33,7 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/tools', toolRoutes);
 app.use('/api/keys', keyRoutes);
 app.use('/api/sellers', sellerRoutes);
+app.use('/api/subjects', subjectRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 app.get('/api/health', (_req, res) => {

@@ -55,6 +55,7 @@ export default function GuestRegisterPage() {
   const [tools, setTools] = useState<any[]>([]);
   const [sellers, setSellers] = useState<any[]>([]);
   const [keys, setKeys] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -64,18 +65,18 @@ export default function GuestRegisterPage() {
       api.get('/tools'),
       api.get('/sellers'),
       api.get('/keys'),
+      api.get('/subjects'),
     ])
-      .then(([sRes, tRes, selRes, kRes]) => {
+      .then(([sRes, tRes, selRes, kRes, subRes]) => {
         setExamSessions(sRes.data);
         setTools(tRes.data);
         setSellers(selRes.data);
         setKeys(kRes.data);
+        setSubjects(subRes.data);
       })
       .catch(() => toast.error('Failed to load form data'))
       .finally(() => setLoading(false));
   }, []);
-
-  const subjects = [...new Map(examSessions.map(s => [s.subjectId, s.subjectId])).values()];
   const sessionsForSubject = examSessions.filter(s => s.subjectId === form.subjectId);
   const availableKeys = keys.filter(
     k => k.status === 'available' && (!form.toolId || k.toolId === form.toolId) && (!form.keyType || k.type === form.keyType)
@@ -217,7 +218,7 @@ export default function GuestRegisterPage() {
                   <Select value={form.subjectId} onValueChange={v => { update('subjectId', v); update('examSessionId', ''); }}>
                     <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
                     <SelectContent>
-                      {subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      {subjects.map((s: any) => <SelectItem key={s._id} value={s.subjectId}>{s.subjectId} — {s.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </Field>

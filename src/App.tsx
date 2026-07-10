@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import DashboardPage from "./pages/DashboardPage";
 import RegistrationsPage from "./pages/RegistrationsPage";
+import SubjectsPage from "./pages/SubjectsPage";
 import ExamSessionsPage from "./pages/ExamSessionsPage";
 import KeysPage from "./pages/KeysPage";
 import ImportDataPage from "./pages/ImportDataPage";
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/register" element={<GuestRegisterPage />} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/registrations" element={<ProtectedRoute><RegistrationsPage /></ProtectedRoute>} />
+            <Route path="/subjects" element={<ProtectedRoute><SubjectsPage /></ProtectedRoute>} />
             <Route path="/sessions" element={<ProtectedRoute><ExamSessionsPage /></ProtectedRoute>} />
             <Route path="/keys" element={<ProtectedRoute><KeysPage /></ProtectedRoute>} />
             <Route path="/import" element={<ProtectedRoute><ImportDataPage /></ProtectedRoute>} />
