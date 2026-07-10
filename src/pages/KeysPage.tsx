@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { keys as initialKeys, tools } from '@/data/sampleData';
-import { Key, KeyType, KeyStatus } from '@/data/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -10,23 +8,59 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Ban } from 'lucide-react';
+import { Plus, Ban, Loader2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '@/lib/api';
+import { toast } from 'sonner';
+
+interface KeyItem {
+  _id: string;
+  keyCode: string;
+  toolId: string;
+  type: string;
+  status: string;
+  expirationDate: string;
+}
 
 export default function KeysPage() {
-  const [keysList, setKeysList] = useState<Key[]>(initialKeys);
+  const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
-  const [newKey, setNewKey] = useState<Partial<Key>>({ keyCode: '', toolId: '', type: 'by_day', status: 'available', expirationDate: '' });
+  const [newKey, setNewKey] = useState({ keyCode: '', toolId: '', type: 'by_day', expirationDate: '' });
 
-  const getTool = (id: string) => tools.find(t => t.id === id)?.name ?? '—';
+  const { data: keysList = [], isLoading } = useQuery({
+    queryKey: ['keys'],
+    queryFn: () => api.get('/keys').then(r => r.data),
+  });
+
+  const { data: tools = [] } = useQuery({
+    queryKey: ['tools'],
+    queryFn: () => api.get('/tools').then(r => r.data),
+  });
+
+  const addMutation = useMutation({
+    mutationFn: (data: any) => api.post('/keys', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['keys'] });
+      toast.success('Key added');
+      setShowAdd(false);
+      setNewKey({ keyCode: '', toolId: '', type: 'by_day', expirationDate: '' });
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to add key'),
+  });
+
+  const markUsedMutation = useMutation({
+    mutationFn: (id: string) => api.put(`/keys/${id}`, { status: 'used' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['keys'] });
+      toast.success('Key marked as used');
+    },
+    onError: () => toast.error('Failed to update key'),
+  });
+
+  const getTool = (id: string) => (tools as any[]).find(t => t._id === id)?.name ?? '\u2014';
 
   const handleAdd = () => {
-    setKeysList(prev => [...prev, { ...newKey, id: `k${Date.now()}` } as Key]);
-    setShowAdd(false);
-    setNewKey({ keyCode: '', toolId: '', type: 'by_day', status: 'available', expirationDate: '' });
-  };
-
-  const markUsed = (id: string) => {
-    setKeysList(prev => prev.map(k => k.id === id ? { ...k, status: 'used' as KeyStatus } : k));
+    addMutation.mutate(newKey);
   };
 
   return (
@@ -40,42 +74,46 @@ export default function KeysPage() {
           <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4 mr-2" />Add Key</Button>
         </div>
         <Card className="shadow-sm border-0 shadow-foreground/5 overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead>Key Code</TableHead>
-                  <TableHead>Tool</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Expiration</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {keysList.map(k => (
-                  <TableRow key={k.id} className="hover:bg-muted/30">
-                    <TableCell className="font-mono text-sm font-medium">{k.keyCode}</TableCell>
-                    <TableCell className="text-sm">{getTool(k.toolId)}</TableCell>
-                    <TableCell><Badge variant="outline">{k.type === 'by_day' ? 'By Day' : 'By Term'}</Badge></TableCell>
-                    <TableCell>
-                      <span className={`status-badge ${k.status === 'available' ? 'status-done' : 'status-cancelled'}`}>
-                        {k.status === 'available' ? 'Available' : 'Used'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm">{k.expirationDate}</TableCell>
-                    <TableCell className="text-right">
-                      {k.status === 'available' && (
-                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => markUsed(k.id)}>
-                          <Ban className="w-4 h-4 mr-1" />Mark Used
-                        </Button>
-                      )}
-                    </TableCell>
+          {isLoading ? (
+            <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead>Key Code</TableHead>
+                    <TableHead>Tool</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Expiration</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {(keysList as KeyItem[]).map(k => (
+                    <TableRow key={k._id} className="hover:bg-muted/30">
+                      <TableCell className="font-mono text-sm font-medium">{k.keyCode}</TableCell>
+                      <TableCell className="text-sm">{getTool(k.toolId)}</TableCell>
+                      <TableCell><Badge variant="outline">{k.type === 'by_day' ? 'By Day' : 'By Term'}</Badge></TableCell>
+                      <TableCell>
+                        <span className={`status-badge ${k.status === 'available' ? 'status-done' : 'status-cancelled'}`}>
+                          {k.status === 'available' ? 'Available' : 'Used'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm">{k.expirationDate}</TableCell>
+                      <TableCell className="text-right">
+                        {k.status === 'available' && (
+                          <Button variant="ghost" size="sm" className="text-destructive" onClick={() => markUsedMutation.mutate(k._id)}>
+                            <Ban className="w-4 h-4 mr-1" />Mark Used
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -93,13 +131,13 @@ export default function KeysPage() {
                 <Select value={newKey.toolId} onValueChange={v => setNewKey({ ...newKey, toolId: v })}>
                   <SelectTrigger><SelectValue placeholder="Select tool" /></SelectTrigger>
                   <SelectContent>
-                    {tools.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                    {(tools as any[]).map((t: any) => <SelectItem key={t._id} value={t._id}>{t.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Type</Label>
-                <Select value={newKey.type} onValueChange={v => setNewKey({ ...newKey, type: v as KeyType })}>
+                <Select value={newKey.type} onValueChange={v => setNewKey({ ...newKey, type: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="by_day">By Day</SelectItem>
@@ -114,7 +152,9 @@ export default function KeysPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-              <Button onClick={handleAdd}>Add Key</Button>
+              <Button onClick={handleAdd} disabled={addMutation.isPending}>
+                {addMutation.isPending ? 'Adding...' : 'Add Key'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

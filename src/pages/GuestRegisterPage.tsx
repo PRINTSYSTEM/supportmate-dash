@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,15 +6,16 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { tools, sellers, keys, examSessions } from '@/data/sampleData';
 import { KeyType, ProcessStatus } from '@/data/types';
-import { GraduationCap, CheckCircle2, ArrowLeft, Send } from 'lucide-react';
+import { GraduationCap, CheckCircle2, ArrowLeft, Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import api from '@/lib/api';
 
 interface FormData {
   studentId: string;
   customerName: string;
   subjectId: string;
+  examSessionId: string;
   toolId: string;
   keyCode: string;
   keyType: KeyType | '';
@@ -27,6 +28,7 @@ const emptyForm: FormData = {
   studentId: '',
   customerName: '',
   subjectId: '',
+  examSessionId: '',
   toolId: '',
   keyCode: '',
   keyType: '',
@@ -35,12 +37,46 @@ const emptyForm: FormData = {
   note: '',
 };
 
+interface SelectItem {
+  _id: string;
+  name?: string;
+  keyCode?: string;
+  subjectId?: string;
+  toolId?: string;
+  type?: string;
+  status?: string;
+}
+
 export default function GuestRegisterPage() {
   const [form, setForm] = useState<FormData>(emptyForm);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const [examSessions, setExamSessions] = useState<any[]>([]);
+  const [tools, setTools] = useState<any[]>([]);
+  const [sellers, setSellers] = useState<any[]>([]);
+  const [keys, setKeys] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  const subjects = [...new Set(examSessions.map(s => s.subjectId))];
+  useEffect(() => {
+    Promise.all([
+      api.get('/sessions'),
+      api.get('/tools'),
+      api.get('/sellers'),
+      api.get('/keys'),
+    ])
+      .then(([sRes, tRes, selRes, kRes]) => {
+        setExamSessions(sRes.data);
+        setTools(tRes.data);
+        setSellers(selRes.data);
+        setKeys(kRes.data);
+      })
+      .catch(() => toast.error('Failed to load form data'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const subjects = [...new Map(examSessions.map(s => [s.subjectId, s.subjectId])).values()];
+  const sessionsForSubject = examSessions.filter(s => s.subjectId === form.subjectId);
   const availableKeys = keys.filter(
     k => k.status === 'available' && (!form.toolId || k.toolId === form.toolId) && (!form.keyType || k.type === form.keyType)
   );
@@ -57,26 +93,53 @@ export default function GuestRegisterPage() {
     if (!form.customerName.trim()) e.customerName = 'Required';
     else if (form.customerName.length > 100) e.customerName = 'Max 100 characters';
     if (!form.subjectId) e.subjectId = 'Required';
+    if (!form.examSessionId) e.examSessionId = 'Required';
     if (form.note.length > 500) e.note = 'Max 500 characters';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (ev: React.FormEvent) => {
+  const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!validate()) {
       toast.error('Please fix the highlighted fields');
       return;
     }
-    // In-memory only; admins can pick this up in the Registrations page later.
-    setSubmitted(true);
-    toast.success('Registration submitted');
+    setSubmitting(true);
+    try {
+      await api.post('/registrations', {
+        studentId: form.studentId.trim(),
+        customerName: form.customerName.trim(),
+        subjectId: form.subjectId,
+        examSessionId: form.examSessionId,
+        toolId: form.toolId || null,
+        keyCode: form.keyCode || null,
+        keyType: form.keyType || null,
+        sellerId: form.sellerId,
+        processStatus: form.processStatus,
+        note: form.note,
+      });
+      setSubmitted(true);
+      toast.success('Registration submitted');
+    } catch {
+      toast.error('Failed to submit registration. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const resetForm = () => {
     setForm(emptyForm);
     setSubmitted(false);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-secondary/40 to-background">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (submitted) {
     return (
@@ -151,24 +214,36 @@ export default function GuestRegisterPage() {
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <Field label="Subject" error={errors.subjectId} required>
-                  <Select value={form.subjectId} onValueChange={v => update('subjectId', v)}>
+                  <Select value={form.subjectId} onValueChange={v => { update('subjectId', v); update('examSessionId', ''); }}>
                     <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
                     <SelectContent>
                       {subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Tool">
-                  <Select value={form.toolId} onValueChange={v => { update('toolId', v); update('keyCode', ''); }}>
-                    <SelectTrigger><SelectValue placeholder="Select tool (optional)" /></SelectTrigger>
+                <Field label="Exam Session" error={errors.examSessionId} required>
+                  <Select value={form.examSessionId} onValueChange={v => update('examSessionId', v)} disabled={!form.subjectId}>
+                    <SelectTrigger><SelectValue placeholder={form.subjectId ? 'Pick a session' : 'Select subject first'} /></SelectTrigger>
                     <SelectContent>
-                      {tools.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                      {sessionsForSubject.map(s => (
+                        <SelectItem key={s._id} value={s._id}>
+                          {s.date} {s.startTime}-{s.endTime} ({s.type})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </Field>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
+                <Field label="Tool">
+                  <Select value={form.toolId} onValueChange={v => { update('toolId', v); update('keyCode', ''); }}>
+                    <SelectTrigger><SelectValue placeholder="Select tool (optional)" /></SelectTrigger>
+                    <SelectContent>
+                      {tools.map(t => <SelectItem key={t._id} value={t._id}>{t.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </Field>
                 <Field label="Key Type">
                   <Select value={form.keyType} onValueChange={v => { update('keyType', v as KeyType); update('keyCode', ''); }}>
                     <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
@@ -178,6 +253,9 @@ export default function GuestRegisterPage() {
                     </SelectContent>
                   </Select>
                 </Field>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
                 <Field label="Key Code">
                   <Select value={form.keyCode} onValueChange={v => update('keyCode', v)}>
                     <SelectTrigger>
@@ -185,31 +263,16 @@ export default function GuestRegisterPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {availableKeys.map(k => (
-                        <SelectItem key={k.id} value={k.keyCode}>{k.keyCode}</SelectItem>
+                        <SelectItem key={k._id} value={k.keyCode}>{k.keyCode}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </Field>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
                 <Field label="Seller">
                   <Select value={form.sellerId} onValueChange={v => update('sellerId', v)}>
                     <SelectTrigger><SelectValue placeholder="Select seller" /></SelectTrigger>
                     <SelectContent>
-                      {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Status">
-                  <Select value={form.processStatus} onValueChange={v => update('processStatus', v as ProcessStatus)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="assigned">Assigned</SelectItem>
-                      <SelectItem value="supporting">Supporting</SelectItem>
-                      <SelectItem value="done">Done</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      {sellers.map(s => <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </Field>
@@ -227,11 +290,12 @@ export default function GuestRegisterPage() {
               </Field>
 
               <div className="flex gap-2 pt-2">
-                <Button type="button" variant="outline" className="flex-1" onClick={resetForm}>
+                <Button type="button" variant="outline" className="flex-1" onClick={resetForm} disabled={submitting}>
                   Clear
                 </Button>
-                <Button type="submit" className="flex-1">
-                  <Send className="w-4 h-4 mr-2" />Submit
+                <Button type="submit" className="flex-1" disabled={submitting}>
+                  {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                  {submitting ? 'Submitting...' : 'Submit'}
                 </Button>
               </div>
             </form>

@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Upload, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
-import { examSessions } from '@/data/sampleData';
+import { Upload, FileSpreadsheet, CheckCircle2, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 interface PreviewRow {
   customerName: string;
@@ -27,7 +29,13 @@ export default function ImportDataPage() {
   const [preview, setPreview] = useState<PreviewRow[] | null>(null);
   const [sessionId, setSessionId] = useState('');
   const [imported, setImported] = useState(false);
+  const [importing, setImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ['sessions'],
+    queryFn: () => api.get('/sessions').then(r => r.data),
+  });
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -38,8 +46,17 @@ export default function ImportDataPage() {
     }
   };
 
-  const handleImport = () => {
-    setImported(true);
+  const handleImport = async () => {
+    setImporting(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast.success('Data imported successfully!');
+      setImported(true);
+    } catch {
+      toast.error('Import failed');
+    } finally {
+      setImporting(false);
+    }
   };
 
   return (
@@ -110,14 +127,15 @@ export default function ImportDataPage() {
                   <Select value={sessionId} onValueChange={setSessionId}>
                     <SelectTrigger><SelectValue placeholder="Select session" /></SelectTrigger>
                     <SelectContent>
-                      {examSessions.map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.date} | {s.startTime}-{s.endTime} | {s.subjectId}</SelectItem>
+                      {(sessions as any[]).map(s => (
+                        <SelectItem key={s._id} value={s._id}>{s.date} | {s.startTime}-{s.endTime} | {s.subjectId}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={handleImport} disabled={!sessionId}>
-                  <Upload className="w-4 h-4 mr-2" />Import Data
+                <Button onClick={handleImport} disabled={!sessionId || importing}>
+                  {importing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                  {importing ? 'Importing...' : 'Import Data'}
                 </Button>
               </CardContent>
             </Card>

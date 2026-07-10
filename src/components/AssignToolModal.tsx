@@ -1,36 +1,72 @@
-import { useState } from 'react';
-import { Registration, ProcessStatus, KeyType } from '@/data/types';
-import { tools, keys } from '@/data/sampleData';
+import { useState, useEffect } from 'react';
+import { ProcessStatus, KeyType } from '@/data/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
-interface Props {
-  registration: Registration;
-  onClose: () => void;
-  onSave: (updated: Registration) => void;
+interface RegistrationData {
+  _id: string;
+  studentId: string;
+  customerName: string;
+  subjectId: string;
+  examSessionId: string;
+  toolId: string | null;
+  keyCode: string | null;
+  keyType: KeyType | null;
+  sellerId: string;
+  processStatus: ProcessStatus;
+  note: string;
 }
 
-export function AssignToolModal({ registration, onClose, onSave }: Props) {
+interface Props {
+  registration: RegistrationData;
+  onClose: () => void;
+}
+
+export function AssignToolModal({ registration, onClose }: Props) {
+  const queryClient = useQueryClient();
   const [toolId, setToolId] = useState(registration.toolId ?? '');
   const [keyType, setKeyType] = useState<KeyType | ''>(registration.keyType ?? '');
   const [keyCode, setKeyCode] = useState(registration.keyCode ?? '');
   const [status, setStatus] = useState<ProcessStatus>(registration.processStatus);
   const [note, setNote] = useState(registration.note);
 
-  const availableKeys = keys.filter(k => {
+  const { data: tools = [] } = useQuery({
+    queryKey: ['tools'],
+    queryFn: () => api.get('/tools').then(r => r.data),
+  });
+
+  const { data: keys = [] } = useQuery({
+    queryKey: ['keys'],
+    queryFn: () => api.get('/keys').then(r => r.data),
+  });
+
+  const availableKeys = keys.filter((k: any) => {
     if (!toolId) return false;
     const matchTool = k.toolId === toolId;
     const matchType = !keyType || k.type === keyType;
-    const isAvailable = k.status === 'available';
+    const isAvailable = k.status === 'available' || k.keyCode === registration.keyCode;
     return matchTool && matchType && isAvailable;
   });
 
+  const mutation = useMutation({
+    mutationFn: (data: any) => api.put(`/registrations/${registration._id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['registrations'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      toast.success('Registration updated');
+      onClose();
+    },
+    onError: () => toast.error('Failed to update registration'),
+  });
+
   const handleSave = () => {
-    onSave({
-      ...registration,
+    mutation.mutate({
       toolId: toolId || null,
       keyType: (keyType as KeyType) || null,
       keyCode: keyCode || null,
@@ -51,7 +87,7 @@ export function AssignToolModal({ registration, onClose, onSave }: Props) {
             <Select value={toolId} onValueChange={setToolId}>
               <SelectTrigger><SelectValue placeholder="Select tool" /></SelectTrigger>
               <SelectContent>
-                {tools.map(t => <SelectItem key={t.id} value={t.id}>{t.name} v{t.version}</SelectItem>)}
+                {tools.map((t: any) => <SelectItem key={t._id} value={t._id}>{t.name} v{t.version}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -70,7 +106,7 @@ export function AssignToolModal({ registration, onClose, onSave }: Props) {
             <Select value={keyCode} onValueChange={setKeyCode}>
               <SelectTrigger><SelectValue placeholder={availableKeys.length ? 'Select key' : 'No keys available'} /></SelectTrigger>
               <SelectContent>
-                {availableKeys.map(k => <SelectItem key={k.id} value={k.keyCode}>{k.keyCode} (exp: {k.expirationDate})</SelectItem>)}
+                {availableKeys.map((k: any) => <SelectItem key={k._id} value={k.keyCode}>{k.keyCode} (exp: {k.expirationDate})</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -94,7 +130,9 @@ export function AssignToolModal({ registration, onClose, onSave }: Props) {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave}>Save</Button>
+          <Button onClick={handleSave} disabled={mutation.isPending}>
+            {mutation.isPending ? 'Saving...' : 'Save'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

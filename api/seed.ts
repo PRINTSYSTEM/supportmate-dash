@@ -1,0 +1,97 @@
+import 'dotenv/config';
+import bcrypt from 'bcryptjs';
+import { connectDB } from './db';
+import Admin from './models/Admin';
+import Tool from './models/Tool';
+import Seller from './models/Seller';
+import Key from './models/Key';
+import ExamSession from './models/ExamSession';
+import Registration from './models/Registration';
+
+async function seed() {
+  await connectDB();
+  console.log('Connected to MongoDB, seeding...');
+
+  // Clear existing data
+  await Promise.all([
+    Admin.deleteMany({}),
+    Tool.deleteMany({}),
+    Seller.deleteMany({}),
+    Key.deleteMany({}),
+    ExamSession.deleteMany({}),
+    Registration.deleteMany({}),
+  ]);
+
+  // Admin
+  const hashed = await bcrypt.hash('admin123', 10);
+  await Admin.create({ username: 'admin', password: hashed });
+
+  // Tools
+  const tools = await Tool.insertMany([
+    { name: 'Respondus LockDown Browser', version: '2.0.9' },
+    { name: 'ExamSoft', version: '3.1.0' },
+    { name: 'ProctorU', version: '1.5.2' },
+    { name: 'Safe Exam Browser', version: '3.5.0' },
+  ]);
+  const [t1, t2, t3, t4] = tools;
+
+  // Sellers
+  const sellers = await Seller.insertMany([
+    { name: 'VN Soft' },
+    { name: 'EduKey' },
+    { name: 'TechLicense' },
+    { name: 'KeyMaster' },
+  ]);
+  const [s1, s2, s3, s4] = sellers;
+
+  // Keys
+  const keys = await Key.insertMany([
+    { keyCode: 'RLB-2026-A001', toolId: t1._id.toString(), type: 'by_term', status: 'available', expirationDate: '2026-06-30' },
+    { keyCode: 'RLB-2026-A002', toolId: t1._id.toString(), type: 'by_term', status: 'used', expirationDate: '2026-06-30' },
+    { keyCode: 'RLB-DAY-0401', toolId: t1._id.toString(), type: 'by_day', status: 'available', expirationDate: '2026-04-01' },
+    { keyCode: 'ES-2026-B001', toolId: t2._id.toString(), type: 'by_term', status: 'available', expirationDate: '2026-08-31' },
+    { keyCode: 'ES-DAY-0401', toolId: t2._id.toString(), type: 'by_day', status: 'used', expirationDate: '2026-04-01' },
+    { keyCode: 'PU-2026-C001', toolId: t3._id.toString(), type: 'by_term', status: 'available', expirationDate: '2026-06-30' },
+    { keyCode: 'SEB-DAY-0402', toolId: t4._id.toString(), type: 'by_day', status: 'available', expirationDate: '2026-04-02' },
+    { keyCode: 'SEB-2026-D001', toolId: t4._id.toString(), type: 'by_term', status: 'available', expirationDate: '2026-12-31' },
+    { keyCode: 'RLB-DAY-0403', toolId: t1._id.toString(), type: 'by_day', status: 'available', expirationDate: '2026-04-03' },
+    { keyCode: 'ES-2026-B002', toolId: t2._id.toString(), type: 'by_term', status: 'available', expirationDate: '2026-08-31' },
+  ]);
+
+  // Exam Sessions
+  const sessions = await ExamSession.insertMany([
+    { date: '2026-04-01', startTime: '08:00', endTime: '10:00', type: 'PE', subjectId: 'CS101', term: 'Spring26', campus: 'Main Campus', studentCount: 45 },
+    { date: '2026-04-01', startTime: '13:00', endTime: '15:00', type: 'FE', subjectId: 'MATH201', term: 'Spring26', campus: 'Main Campus', studentCount: 60 },
+    { date: '2026-04-02', startTime: '09:00', endTime: '11:00', type: 'PE', subjectId: 'ENG102', term: 'Spring26', campus: 'South Campus', studentCount: 35 },
+    { date: '2026-04-02', startTime: '14:00', endTime: '16:00', type: 'FE', subjectId: 'PHY301', term: 'Spring26', campus: 'Main Campus', studentCount: 28 },
+    { date: '2026-04-03', startTime: '08:00', endTime: '10:30', type: 'PE', subjectId: 'BIO201', term: 'Spring26', campus: 'North Campus', studentCount: 52 },
+    { date: '2026-04-03', startTime: '13:00', endTime: '15:00', type: 'FE', subjectId: 'CS101', term: 'Spring26', campus: 'Main Campus', studentCount: 40 },
+    { date: '2026-04-05', startTime: '09:00', endTime: '11:00', type: 'PE', subjectId: 'CHEM101', term: 'Spring26', campus: 'South Campus', studentCount: 30 },
+  ]);
+  const [es1, es2, es3, es4, es5, es6, es7] = sessions;
+
+  // Registrations
+  await Registration.insertMany([
+    { studentId: 'STU001', customerName: 'Nguyen Van A', subjectId: 'CS101', examSessionId: es1._id.toString(), toolId: t1._id.toString(), keyCode: 'RLB-2026-A002', keyType: 'by_term', sellerId: s1._id.toString(), processStatus: 'done', note: 'Completed successfully' },
+    { studentId: 'STU002', customerName: 'Tran Thi B', subjectId: 'CS101', examSessionId: es1._id.toString(), toolId: t2._id.toString(), keyCode: 'ES-DAY-0401', keyType: 'by_day', sellerId: s2._id.toString(), processStatus: 'supporting', note: 'Student needs assistance' },
+    { studentId: 'STU003', customerName: 'Le Van C', subjectId: 'MATH201', examSessionId: es2._id.toString(), toolId: null, keyCode: null, keyType: null, sellerId: s1._id.toString(), processStatus: 'pending', note: '' },
+    { studentId: 'STU004', customerName: 'Pham Thi D', subjectId: 'MATH201', examSessionId: es2._id.toString(), toolId: t1._id.toString(), keyCode: 'RLB-2026-A001', keyType: 'by_term', sellerId: s3._id.toString(), processStatus: 'assigned', note: 'Key assigned' },
+    { studentId: 'STU005', customerName: 'Hoang Van E', subjectId: 'ENG102', examSessionId: es3._id.toString(), toolId: null, keyCode: null, keyType: null, sellerId: s2._id.toString(), processStatus: 'pending', note: '' },
+    { studentId: 'STU006', customerName: 'Vo Thi F', subjectId: 'ENG102', examSessionId: es3._id.toString(), toolId: t3._id.toString(), keyCode: 'PU-2026-C001', keyType: 'by_term', sellerId: s4._id.toString(), processStatus: 'done', note: '' },
+    { studentId: 'STU007', customerName: 'Bui Van G', subjectId: 'PHY301', examSessionId: es4._id.toString(), toolId: t4._id.toString(), keyCode: null, keyType: 'by_day', sellerId: s1._id.toString(), processStatus: 'assigned', note: 'Waiting for key' },
+    { studentId: 'STU008', customerName: 'Dang Thi H', subjectId: 'BIO201', examSessionId: es5._id.toString(), toolId: null, keyCode: null, keyType: null, sellerId: s3._id.toString(), processStatus: 'pending', note: '' },
+    { studentId: 'STU009', customerName: 'Ngo Van I', subjectId: 'BIO201', examSessionId: es5._id.toString(), toolId: t2._id.toString(), keyCode: 'ES-2026-B001', keyType: 'by_term', sellerId: s2._id.toString(), processStatus: 'supporting', note: 'In progress' },
+    { studentId: 'STU010', customerName: 'Do Thi K', subjectId: 'CS101', examSessionId: es6._id.toString(), toolId: t1._id.toString(), keyCode: 'RLB-DAY-0403', keyType: 'by_day', sellerId: s4._id.toString(), processStatus: 'cancelled', note: 'Student withdrew' },
+    { studentId: 'STU011', customerName: 'Truong Van L', subjectId: 'CHEM101', examSessionId: es7._id.toString(), toolId: null, keyCode: null, keyType: null, sellerId: s1._id.toString(), processStatus: 'pending', note: '' },
+    { studentId: 'STU012', customerName: 'Mai Thi M', subjectId: 'CS101', examSessionId: es1._id.toString(), toolId: t1._id.toString(), keyCode: null, keyType: null, sellerId: s2._id.toString(), processStatus: 'pending', note: '' },
+  ]);
+
+  console.log('Seed complete!');
+  console.log('Admin login: admin / admin123');
+  process.exit(0);
+}
+
+seed().catch((err) => {
+  console.error('Seed failed:', err);
+  process.exit(1);
+});
