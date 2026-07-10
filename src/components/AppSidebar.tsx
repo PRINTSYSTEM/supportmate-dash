@@ -7,6 +7,7 @@ import {
   KeyRound,
   Upload,
   BookOpen,
+  School,
   GraduationCap,
   ChevronLeft,
   LogOut,
@@ -22,6 +23,7 @@ const navItems = [
   { title: 'Registrations', path: '/registrations', icon: ClipboardList },
   { title: 'Exam Sessions', path: '/sessions', icon: Calendar },
   { title: 'Subjects', path: '/subjects', icon: BookOpen },
+  { title: 'Terms', path: '/terms', icon: School },
   { title: 'Keys', path: '/keys', icon: KeyRound },
   { title: 'Import Data', path: '/import', icon: Upload },
 ];

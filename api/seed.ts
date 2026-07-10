@@ -7,6 +7,7 @@ import Seller from '../backend/models/Seller.js';
 import Key from '../backend/models/Key.js';
 import ExamSession from '../backend/models/ExamSession.js';
 import Subject from '../backend/models/Subject.js';
+import Term from '../backend/models/Term.js';
 import Registration from '../backend/models/Registration.js';
 
 async function seed() {
@@ -17,6 +18,7 @@ async function seed() {
   await Promise.all([
     (Admin as any).deleteMany({}),
     (Subject as any).deleteMany({}),
+    (Term as any).deleteMany({}),
     (Tool as any).deleteMany({}),
     (Seller as any).deleteMany({}),
     (Key as any).deleteMany({}),
@@ -32,6 +34,14 @@ async function seed() {
     { subjectId: 'PHY301', name: 'Physics 301' },
     { subjectId: 'BIO201', name: 'Biology 201' },
     { subjectId: 'CHEM101', name: 'Chemistry 101' },
+  ]);
+
+  // Terms
+  await (Term as any).insertMany([
+    { termId: 'Spring26', name: 'Spring 2026' },
+    { termId: 'Summer26', name: 'Summer 2026' },
+    { termId: 'Fall26', name: 'Fall 2026' },
+    { termId: 'Spring27', name: 'Spring 2027' },
   ]);
 
   // Admin

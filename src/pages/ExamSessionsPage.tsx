@@ -37,6 +37,11 @@ export default function ExamSessionsPage() {
     queryFn: () => api.get('/sessions').then(r => r.data),
   });
 
+  const { data: terms = [] } = useQuery({
+    queryKey: ['terms'],
+    queryFn: () => api.get('/terms').then(r => r.data),
+  });
+
   const createMutation = useMutation({
     mutationFn: (data: any) => api.post('/sessions', data),
     onSuccess: () => {
@@ -163,9 +168,9 @@ export default function ExamSessionsPage() {
                 <Select value={editSession.term} onValueChange={v => setEditSession({ ...editSession, term: v as any })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Spring26">Spring 26</SelectItem>
-                    <SelectItem value="Summer26">Summer 26</SelectItem>
-                    <SelectItem value="Fall26">Fall 26</SelectItem>
+                    {(terms as any[]).map(t => (
+                      <SelectItem key={t._id} value={t.termId}>{t.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

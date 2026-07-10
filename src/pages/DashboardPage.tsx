@@ -16,12 +16,17 @@ interface Stats {
 }
 
 export default function DashboardPage() {
-  const [term, setTerm] = useState('Spring26');
+  const [term, setTerm] = useState('');
   const [examType, setExamType] = useState('all');
 
   const { data: stats, isLoading } = useQuery<Stats>({
     queryKey: ['dashboard-stats'],
     queryFn: () => api.get('/dashboard/stats').then(r => r.data),
+  });
+
+  const { data: terms = [] } = useQuery({
+    queryKey: ['terms'],
+    queryFn: () => api.get('/terms').then(r => r.data),
   });
 
   const summaryCards = [
@@ -47,11 +52,11 @@ export default function DashboardPage() {
           </div>
           <div className="flex gap-2">
             <Select value={term} onValueChange={setTerm}>
-              <SelectTrigger className="w-36 bg-card"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-36 bg-card"><SelectValue placeholder="All terms" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Spring26">Spring 26</SelectItem>
-                <SelectItem value="Summer26">Summer 26</SelectItem>
-                <SelectItem value="Fall26">Fall 26</SelectItem>
+                {(terms as any[]).map(t => (
+                  <SelectItem key={t._id} value={t.termId}>{t.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={examType} onValueChange={setExamType}>
