@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { connectDB } from '../backend/db.js';
+import { ensureDefaultData } from '../backend/init.js';
 import authRoutes from '../backend/routes/auth.js';
 import registrationRoutes from '../backend/routes/registrations.js';
 import sessionRoutes from '../backend/routes/sessions.js';
@@ -24,6 +25,7 @@ app.use(express.json());
 app.use(async (_req, _res, next) => {
   try {
     await connectDB();
+    await ensureDefaultData();
     next();
   } catch (err) {
     console.error('DB connection error:', err);
@@ -52,7 +54,8 @@ app.get('/api/health', (_req, res) => {
 const PORT = process.env.PORT || 3001;
 if (!process.env.VERCEL) {
   connectDB()
-    .then(() => {
+    .then(async () => {
+      await ensureDefaultData();
       app.listen(PORT, () => {
         console.log(`API server running on http://localhost:${PORT}`);
       });
