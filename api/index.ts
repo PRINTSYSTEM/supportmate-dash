@@ -25,7 +25,6 @@ app.use(express.json());
 app.use(async (_req, _res, next) => {
   try {
     await connectDB();
-    await ensureDefaultData();
     next();
   } catch (err) {
     console.error('DB connection error:', err);

@@ -443,44 +443,77 @@ export default function GuestRegisterPage() {
                             </div>
 
                             {subjectItem.subjectId && (
-                              <>
-                                <div className="space-y-1.5">
-                                  <Label className="text-xs">{t('field.examType')} ({t('validation.maxExamTypes')})</Label>
-                                  <div className="flex flex-wrap gap-3">
-                                    {ALL_EXAM_TYPES.map(et => {
-                                      const checked = subjectItem.examTypes.some(e => e.type === et);
-                                      const disabled = !checked && subjectItem.examTypes.length >= 2;
-                                      return (
-                                        <div key={et} className="flex items-center gap-1.5">
+                              <div className="space-y-2">
+                                <Label className="text-xs font-semibold text-muted-foreground">{t('field.examType')} ({t('validation.maxExamTypes')})</Label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {ALL_EXAM_TYPES.map(et => {
+                                    const checked = subjectItem.examTypes.some(e => e.type === et);
+                                    const disabled = !checked && subjectItem.examTypes.length >= 2;
+                                    const examTypeVal = subjectItem.examTypes.find(e => e.type === et);
+                                    
+                                    const timeStr = examTypeVal?.time || '';
+                                    const [h, m] = timeStr.split(':');
+                                    const currentHour = h || '';
+                                    const currentMinute = m || '';
+
+                                    return (
+                                      <div key={et} className="flex items-center justify-between p-2 rounded-lg border bg-muted/5 h-12 gap-2">
+                                        <div className="flex items-center gap-2 shrink-0">
                                           <Checkbox
                                             id={`et-${dateIndex}-${subjectIndex}-${et}`}
                                             checked={checked}
                                             disabled={disabled}
                                             onCheckedChange={() => toggleExamType(dateIndex, subjectIndex, et)}
                                           />
-                                          <Label htmlFor={`et-${dateIndex}-${subjectIndex}-${et}`} className="text-sm font-normal cursor-pointer">
+                                          <Label htmlFor={`et-${dateIndex}-${subjectIndex}-${et}`} className="text-sm font-normal cursor-pointer select-none">
                                             {t(`examType.${et}`)}
                                           </Label>
                                         </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
 
-                                <div className="grid grid-cols-2 gap-3">
-                                  {subjectItem.examTypes.map(et => (
-                                    <div key={et.type} className="space-y-1.5">
-                                      <Label className="text-xs">{t('examType.' + et.type)} — {t('field.time')}</Label>
-                                      <Input
-                                        type="time"
-                                        value={et.time}
-                                        onChange={e => updateExamTime(dateIndex, subjectIndex, et.type, e.target.value)}
-                                        placeholder="HH:mm"
-                                      />
-                                    </div>
-                                  ))}
+                                        {checked && examTypeVal && (
+                                          <div className="flex items-center gap-1 shrink-0 animate-in fade-in duration-200">
+                                            <Select
+                                              value={currentHour}
+                                              onValueChange={(val) => {
+                                                const min = currentMinute || '00';
+                                                updateExamTime(dateIndex, subjectIndex, et, `${val}:${min}`);
+                                              }}
+                                            >
+                                              <SelectTrigger className="h-8 w-[60px] text-xs px-1.5 py-0">
+                                                <SelectValue placeholder="Giờ" />
+                                              </SelectTrigger>
+                                              <SelectContent className="max-h-[200px]">
+                                                {Array.from({ length: 24 }, (_, i) => {
+                                                  const val = i.toString().padStart(2, '0');
+                                                  return <SelectItem key={val} value={val} className="text-xs">{val}</SelectItem>;
+                                                })}
+                                              </SelectContent>
+                                            </Select>
+                                            <span className="text-muted-foreground text-xs">:</span>
+                                            <Select
+                                              value={currentMinute}
+                                              onValueChange={(val) => {
+                                                const hr = currentHour || '07';
+                                                updateExamTime(dateIndex, subjectIndex, et, `${hr}:${val}`);
+                                              }}
+                                            >
+                                              <SelectTrigger className="h-8 w-[60px] text-xs px-1.5 py-0">
+                                                <SelectValue placeholder="Phút" />
+                                              </SelectTrigger>
+                                              <SelectContent className="max-h-[200px]">
+                                                {Array.from({ length: 60 }, (_, i) => {
+                                                  const val = i.toString().padStart(2, '0');
+                                                  return <SelectItem key={val} value={val} className="text-xs">{val}</SelectItem>;
+                                                })}
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                              </>
+                              </div>
                             )}
                           </div>
                         );
