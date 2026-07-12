@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Pencil, ChevronLeft, ChevronRight, Loader2, Calendar } from 'lucide-react';
+import { Search, Pencil, ChevronLeft, ChevronRight, Loader2, Calendar, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { toast } from 'sonner';
 import { ProcessStatus, KeyType } from '@/data/types';
 
 const PAGE_SIZE = 8;
@@ -33,6 +34,7 @@ interface RegistrationItem {
 }
 
 export default function RegistrationsPage() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSubject, setFilterSubject] = useState('all');
@@ -41,6 +43,17 @@ export default function RegistrationsPage() {
   const [filterDate, setFilterDate] = useState('');
   const [page, setPage] = useState(0);
   const [modalReg, setModalReg] = useState<RegistrationItem | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/registrations/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['registrations'] });
+      toast.success('Đã xóa dòng hỗ trợ thi');
+    },
+    onError: () => {
+      toast.error('Không thể xóa dòng hỗ trợ thi');
+    }
+  });
 
   const { data: sessionsData = [] } = useQuery({
     queryKey: ['sessions'],
@@ -217,6 +230,19 @@ export default function RegistrationsPage() {
                             <div className="flex gap-1 justify-end">
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setModalReg(r)}>
                                 <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => {
+                                  if (confirm('Bạn có chắc chắn muốn xóa dòng đăng ký hỗ trợ thi này?')) {
+                                    deleteMutation.mutate(r._id);
+                                  }
+                                }}
+                                disabled={deleteMutation.isPending}
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
                           </TableCell>

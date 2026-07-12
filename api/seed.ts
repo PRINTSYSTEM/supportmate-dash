@@ -15,8 +15,15 @@ import ToolRegistration from '../backend/models/ToolRegistration.js';
 
 async function seed() {
   await connectDB();
-  console.log('Connected to MongoDB, seeding...');
+  console.log('Connected to MongoDB.');
+  
+  const adminCount = await (Admin as any).countDocuments();
+  if (adminCount > 0) {
+    console.log('Database already initialized. Skipping seed to prevent overwriting.');
+    process.exit(0);
+  }
 
+  console.log('Seeding...');
   // Clear existing data
   await Promise.all([
     (Admin as any).deleteMany({}),

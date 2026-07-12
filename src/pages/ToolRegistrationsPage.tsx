@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Search, Pencil, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Search, Pencil, ChevronLeft, ChevronRight, Loader2, Trash2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -115,6 +115,16 @@ export default function ToolRegistrationsPage() {
       setModalReg(null);
     },
     onError: () => toast.error('Failed to update registration'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/tool-registrations/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tool-registrations'] });
+      queryClient.invalidateQueries({ queryKey: ['all-registrations-raw'] });
+      toast.success('Đã xóa đăng ký tool');
+    },
+    onError: () => toast.error('Không thể xóa đăng ký tool'),
   });
 
   const getToolTypeName = (id: string) => {
@@ -247,9 +257,24 @@ export default function ToolRegistrationsPage() {
                         </TableCell>
                         <TableCell><StatusBadge status={r.processStatus as any} /></TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openModal(r)}>
-                            <Pencil className="w-4 h-4" />
-                          </Button>
+                          <div className="flex gap-1 justify-end">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openModal(r)}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => {
+                                if (confirm('Bạn có chắc chắn muốn xóa dòng đăng ký Tool này và các lịch thi hỗ trợ liên quan?')) {
+                                  deleteMutation.mutate(r._id);
+                                }
+                              }}
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

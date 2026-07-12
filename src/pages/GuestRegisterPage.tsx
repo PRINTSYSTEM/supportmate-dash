@@ -8,8 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command';
 import { cn } from '@/lib/utils';
-import { GraduationCap, CheckCircle2, ArrowLeft, Send, Loader2, Plus, X, Trash2, Clock } from 'lucide-react';
+import { GraduationCap, CheckCircle2, ArrowLeft, Send, Loader2, Plus, X, Trash2, Clock, ChevronsUpDown, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useTranslation } from '@/i18n';
@@ -72,6 +80,19 @@ export default function GuestRegisterPage() {
   const [toolTypes, setToolTypes] = useState<any[]>([]);
   const [pricing, setPricing] = useState<PricingData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [openPopover, setOpenPopover] = useState<string | null>(null);
+  const [subjectSearch, setSubjectSearch] = useState('');
+
+  const filteredSubjects = useMemo(() => {
+    if (!subjectSearch) return subjects.slice(0, 100);
+    const query = subjectSearch.toLowerCase();
+    return subjects
+      .filter((s: any) => 
+        s.subjectId.toLowerCase().includes(query) || 
+        s.name.toLowerCase().includes(query)
+      )
+      .slice(0, 100);
+  }, [subjects, subjectSearch]);
 
   useEffect(() => {
     Promise.all([
@@ -426,19 +447,69 @@ export default function GuestRegisterPage() {
                             <div className="flex items-center gap-3">
                               <div className="flex-1 space-y-1.5">
                                 <Label className="text-xs">{t('field.subject')}</Label>
-                                <Select
-                                  value={subjectItem.subjectId}
-                                  onValueChange={v => updateSubject(dateIndex, subjectIndex, v)}
+                                <Popover
+                                  open={openPopover === `${dateIndex}-${subjectIndex}`}
+                                  onOpenChange={(open) => {
+                                    setOpenPopover(open ? `${dateIndex}-${subjectIndex}` : null);
+                                    if (open) {
+                                      setSubjectSearch('');
+                                    }
+                                  }}
                                 >
-                                  <SelectTrigger><SelectValue placeholder={t('action.selectSubject')} /></SelectTrigger>
-                                  <SelectContent>
-                                    {subjects
-                                      .filter((s: any) => !usedSubjectIds.includes(s.subjectId))
-                                      .map((s: any) => (
-                                        <SelectItem key={s._id} value={s.subjectId}>{s.subjectId} — {s.name}</SelectItem>
-                                      ))}
-                                  </SelectContent>
-                                </Select>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      role="combobox"
+                                      aria-expanded={openPopover === `${dateIndex}-${subjectIndex}`}
+                                      className={cn(
+                                        "w-full justify-between font-normal text-left border border-input bg-background hover:bg-background h-10 px-3",
+                                        !subjectItem.subjectId && "text-muted-foreground"
+                                      )}
+                                    >
+                                      <span className="truncate">
+                                        {subjectItem.subjectId
+                                          ? `${subjectItem.subjectId} — ${subjects.find((s) => s.subjectId === subjectItem.subjectId)?.name || ''}`
+                                          : t('action.selectSubject')}
+                                      </span>
+                                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                                    <Command shouldFilter={false}>
+                                      <CommandInput
+                                        placeholder="Tìm kiếm môn học..."
+                                        value={subjectSearch}
+                                        onValueChange={setSubjectSearch}
+                                      />
+                                      <CommandList>
+                                        <CommandEmpty>Không tìm thấy môn học.</CommandEmpty>
+                                        <CommandGroup>
+                                          {filteredSubjects
+                                            .filter((s: any) => !usedSubjectIds.includes(s.subjectId))
+                                            .map((s: any) => (
+                                              <CommandItem
+                                                key={s._id}
+                                                value={s.subjectId}
+                                                onSelect={() => {
+                                                  updateSubject(dateIndex, subjectIndex, s.subjectId);
+                                                  setOpenPopover(null);
+                                                  setSubjectSearch('');
+                                                }}
+                                              >
+                                                <Check
+                                                  className={cn(
+                                                    "mr-2 h-4 w-4",
+                                                    subjectItem.subjectId === s.subjectId ? "opacity-100" : "opacity-0"
+                                                  )}
+                                                />
+                                                {s.subjectId} — {s.name}
+                                              </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                      </CommandList>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
                               </div>
                               {dateItem.subjects.length > 1 && (
                                 <Button type="button" variant="ghost" size="icon" className="h-9 w-9 mt-5 text-destructive" onClick={() => removeSubject(dateIndex, subjectIndex)}>
