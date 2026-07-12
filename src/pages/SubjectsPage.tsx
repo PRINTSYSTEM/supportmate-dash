@@ -6,10 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Upload } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { ImportExcelDialog } from '@/components/ImportExcelDialog';
 
 interface Subject {
   _id: string;
@@ -17,9 +18,15 @@ interface Subject {
   name: string;
 }
 
+const subjectColumns = [
+  { key: 'subjectId', label: 'Subject Code', required: true },
+  { key: 'name', label: 'Name', required: true },
+];
+
 export default function SubjectsPage() {
   const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [editSubject, setEditSubject] = useState<Subject | null>(null);
   const [subjectId, setSubjectId] = useState('');
   const [name, setName] = useState('');
@@ -99,8 +106,13 @@ export default function SubjectsPage() {
             <h1 className="text-2xl font-bold">Subjects</h1>
             <p className="text-sm text-muted-foreground">Manage exam subjects for registration</p>
           </div>
-          <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" />Add Subject</Button>
-        </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowImport(true)}>
+              <Upload className="w-4 h-4 mr-2" />Import Excel
+            </Button>
+            <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" />Add Subject</Button>
+          </div>
+          </div>
         <Card className="shadow-sm border-0 shadow-foreground/5 overflow-hidden">
           {isLoading ? (
             <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
@@ -137,6 +149,16 @@ export default function SubjectsPage() {
           )}
         </Card>
       </div>
+
+      <ImportExcelDialog
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        title="Import Subjects"
+        columns={subjectColumns}
+        templateUrl="subjects-template.xlsx"
+        apiEndpoint="/subjects/import"
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['subjects'] })}
+      />
 
       <Dialog open={showDialog} onOpenChange={closeDialog}>
         <DialogContent className="sm:max-w-sm">

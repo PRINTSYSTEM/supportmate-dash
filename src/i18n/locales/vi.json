@@ -1,0 +1,56 @@
+{
+  "app.title": "Đăng Ký Tool",
+  "app.subtitle": "Form đăng ký tool hỗ trợ thi",
+  "app.admin": "Quản trị",
+  "app.submit": "Đăng Ký",
+  "app.submitting": "Đang xử lý...",
+  "app.reset": "Làm lại",
+  "app.success.title": "Đăng ký thành công",
+  "app.success.message": "Cảm ơn {name}. Đơn đăng ký của bạn đã được ghi nhận. Mã đăng ký: {id}",
+  "app.success.submitAnother": "Đăng ký tiếp",
+  "app.success.goHome": "Về trang chủ",
+
+  "field.fullName": "Họ và Tên",
+  "field.studentId": "MSSV",
+  "field.toolType": "Loại tool",
+  "field.toolPackage": "Gói tool",
+  "field.examDate": "Ngày thi",
+  "field.subject": "Môn thi",
+  "field.examType": "Loại thi",
+  "field.time": "Thời gian",
+  "field.totalPrice": "Tổng tiền",
+  "field.note": "Ghi chú",
+
+  "package.day": "Ngày",
+  "package.term": "Kỳ",
+
+  "examType.PE": "PE",
+  "examType.FE": "FE",
+  "examType.RETAKE_PE": "RETAKE PE",
+  "examType.RETAKE_FE": "RETAKE FE",
+
+  "action.addDate": "Thêm ngày thi",
+  "action.removeDate": "Xóa ngày",
+  "action.addSubject": "Thêm môn thi",
+  "action.removeSubject": "Xóa môn",
+  "action.selectSubject": "Chọn môn học",
+
+  "price.tool": "Tool",
+  "price.feSlots": "Slot FE",
+  "price.peSlots": "Slot PE",
+  "price.discount": "Giảm giá",
+  "price.total": "Tổng cộng",
+
+  "validation.required": "Trường này bắt buộc",
+  "validation.maxLength": "Tối đa {max} ký tự",
+  "validation.selectSubject": "Chọn môn học",
+  "validation.selectExamType": "Chọn ít nhất 1 loại thi",
+  "validation.maxExamTypes": "Tối đa 2 loại thi",
+  "validation.enterTime": "Nhập giờ thi",
+  "validation.invalidTime": "Giờ không hợp lệ (HH:mm)",
+  "validation.duplicateSubject": "Môn đã được chọn trong ngày này",
+  "validation.duplicateDate": "Ngày thi trùng lặp",
+
+  "language.vi": "Tiếng Việt",
+  "language.en": "English"
+}

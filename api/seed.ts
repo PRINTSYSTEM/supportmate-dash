@@ -9,6 +9,9 @@ import ExamSession from '../backend/models/ExamSession.js';
 import Subject from '../backend/models/Subject.js';
 import Term from '../backend/models/Term.js';
 import Registration from '../backend/models/Registration.js';
+import ToolType from '../backend/models/ToolType.js';
+import PricingConfig from '../backend/models/PricingConfig.js';
+import ToolRegistration from '../backend/models/ToolRegistration.js';
 
 async function seed() {
   await connectDB();
@@ -24,6 +27,9 @@ async function seed() {
     (Key as any).deleteMany({}),
     (ExamSession as any).deleteMany({}),
     (Registration as any).deleteMany({}),
+    (ToolType as any).deleteMany({}),
+    (PricingConfig as any).deleteMany({}),
+    (ToolRegistration as any).deleteMany({}),
   ]);
 
   // Subjects
@@ -43,6 +49,29 @@ async function seed() {
     { termId: 'Fall26', name: 'Fall 2026' },
     { termId: 'Spring27', name: 'Spring 2027' },
   ]);
+
+  // Tool Types
+  const binhNgo = await (ToolType as any).create({
+    name: 'Bính Ngọ',
+    slug: 'binh-ngo',
+    isActive: true,
+  });
+  await (ToolType as any).create({
+    name: 'Viper',
+    slug: 'viper',
+    isActive: true,
+  });
+
+  // Pricing Config
+  await (PricingConfig as any).create({
+    toolDayPrice: 800000,
+    toolTermPrice: 1800000,
+    feSlotPrice: 200000,
+    peSlotPrice: 0,
+    discountEnabled: true,
+    discountAmount: 200000,
+    activeToolTypeId: binhNgo._id.toString(),
+  });
 
   // Admin
   const hashed = await bcrypt.hash('admin123', 10);
@@ -110,6 +139,8 @@ async function seed() {
 
   console.log('Seed complete!');
   console.log('Admin login: admin / admin123');
+  console.log('Tool types: Bính Ngọ, Viper');
+  console.log('Pricing config created with defaults');
   process.exit(0);
 }
 

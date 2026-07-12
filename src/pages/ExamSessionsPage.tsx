@@ -8,10 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Pencil, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Loader2, Upload } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { ImportExcelDialog } from '@/components/ImportExcelDialog';
 
 interface SessionData {
   _id: string;
@@ -27,10 +28,22 @@ interface SessionData {
 
 const emptySession = { date: '', startTime: '', endTime: '', type: 'PE' as const, subjectId: '', term: 'Spring26', campus: '', studentCount: 0 };
 
+const sessionColumns = [
+  { key: 'date', label: 'Date', required: true },
+  { key: 'startTime', label: 'Start Time', required: true },
+  { key: 'endTime', label: 'End Time', required: true },
+  { key: 'type', label: 'Type', required: true },
+  { key: 'subjectId', label: 'Subject Code', required: true },
+  { key: 'term', label: 'Term', required: true },
+  { key: 'campus', label: 'Campus', required: true },
+  { key: 'studentCount', label: 'Student Count' },
+];
+
 export default function ExamSessionsPage() {
   const queryClient = useQueryClient();
   const [editSession, setEditSession] = useState<SessionData | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ['sessions'],
@@ -86,8 +99,13 @@ export default function ExamSessionsPage() {
             <h1 className="text-2xl font-bold">Exam Sessions</h1>
             <p className="text-sm text-muted-foreground">Manage exam session schedules</p>
           </div>
-          <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" />Create Session</Button>
-        </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowImport(true)}>
+              <Upload className="w-4 h-4 mr-2" />Import Excel
+            </Button>
+            <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" />Create Session</Button>
+          </div>
+          </div>
         <Card className="shadow-sm border-0 shadow-foreground/5 overflow-hidden">
           {isLoading ? (
             <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
@@ -131,6 +149,16 @@ export default function ExamSessionsPage() {
           )}
         </Card>
       </div>
+
+      <ImportExcelDialog
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        title="Import Exam Sessions"
+        columns={sessionColumns}
+        templateUrl="exam-sessions-template.xlsx"
+        apiEndpoint="/sessions/import"
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['sessions'] })}
+      />
 
       {editSession && (
         <Dialog open onOpenChange={() => { setEditSession(null); setIsNew(false); }}>

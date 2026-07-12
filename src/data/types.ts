@@ -49,3 +49,69 @@ export interface Seller {
   id: string;
   name: string;
 }
+
+// --- New types for Tool Registration ---
+
+export type ToolPackage = 'day' | 'term';
+export type ToolProcessStatus = 'pending' | 'assigned' | 'done' | 'cancelled';
+export type ExamTypeSlot = 'PE' | 'FE' | 'RETAKE_PE' | 'RETAKE_FE';
+
+export interface ExamTypeSlotData {
+  type: ExamTypeSlot;
+  time: string;
+}
+
+export interface ToolSubject {
+  subjectId: string;
+  examTypes: ExamTypeSlotData[];
+}
+
+export interface ToolDate {
+  date: string;
+  subjects: ToolSubject[];
+}
+
+export interface PriceSnapshot {
+  toolPrice: number;
+  feSlotPrice: number;
+  peSlotPrice: number;
+  feSlotCount: number;
+  peSlotCount: number;
+  discountEnabled: boolean;
+  discountAmount: number;
+}
+
+export interface ToolRegistration {
+  _id: string;
+  studentId: string;
+  customerName: string;
+  toolPackage: ToolPackage;
+  toolTypeId: string;
+  keyCode: string | null;
+  processStatus: ToolProcessStatus;
+  dates: ToolDate[];
+  priceSnapshot: PriceSnapshot;
+  totalPrice: number;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ToolType {
+  _id: string;
+  name: string;
+  slug: string;
+  isActive: boolean;
+}
+
+export interface PricingConfig {
+  _id: string;
+  toolDayPrice: number;
+  toolTermPrice: number;
+  feSlotPrice: number;
+  peSlotPrice: number;
+  discountEnabled: boolean;
+  discountAmount: number;
+  activeToolTypeId: string | null;
+  updatedBy: string | null;
+}

@@ -1,137 +1,264 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { KeyType, ProcessStatus } from '@/data/types';
-import { GraduationCap, CheckCircle2, ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
+import { GraduationCap, CheckCircle2, ArrowLeft, Send, Loader2, Plus, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { useTranslation } from '@/i18n';
+import type { ExamTypeSlot, ExamTypeSlotData, ToolSubject, ToolDate } from '@/data/types';
 
-interface FormData {
-  studentId: string;
+const ALL_EXAM_TYPES: ExamTypeSlot[] = ['PE', 'FE', 'RETAKE_PE', 'RETAKE_FE'];
+const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+interface PricingData {
+  toolDayPrice: number;
+  toolTermPrice: number;
+  feSlotPrice: number;
+  peSlotPrice: number;
+  discountEnabled: boolean;
+  discountAmount: number;
+}
+
+function emptySubject(): ToolSubject {
+  return { subjectId: '', examTypes: [] };
+}
+
+function emptyDate(): ToolDate {
+  return { date: '', subjects: [emptySubject()] };
+}
+
+interface FormState {
   customerName: string;
-  subjectId: string;
-  examSessionId: string;
-  toolId: string;
-  keyCode: string;
-  keyType: KeyType | '';
-  sellerId: string;
-  processStatus: ProcessStatus;
+  studentId: string;
+  toolTypeId: string;
+  toolPackage: 'day' | 'term';
+  dates: ToolDate[];
   note: string;
 }
 
-const emptyForm: FormData = {
-  studentId: '',
+const initialForm: FormState = {
   customerName: '',
-  subjectId: '',
-  examSessionId: '',
-  toolId: '',
-  keyCode: '',
-  keyType: '',
-  sellerId: '',
-  processStatus: 'pending',
+  studentId: '',
+  toolTypeId: '',
+  toolPackage: 'day',
+  dates: [emptyDate()],
   note: '',
 };
 
-interface SelectItem {
-  _id: string;
-  name?: string;
-  keyCode?: string;
-  subjectId?: string;
-  toolId?: string;
-  type?: string;
-  status?: string;
+function formatVND(amount: number): string {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 }
 
 export default function GuestRegisterPage() {
-  const [form, setForm] = useState<FormData>(emptyForm);
+  const { t, language, setLanguage } = useTranslation();
+  const [form, setForm] = useState<FormState>(initialForm);
   const [submitted, setSubmitted] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
-  const [examSessions, setExamSessions] = useState<any[]>([]);
-  const [tools, setTools] = useState<any[]>([]);
-  const [sellers, setSellers] = useState<any[]>([]);
-  const [keys, setKeys] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [submittedId, setSubmittedId] = useState('');
+  const [submittedPrice, setSubmittedPrice] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [toolTypes, setToolTypes] = useState<any[]>([]);
+  const [pricing, setPricing] = useState<PricingData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
-      api.get('/sessions'),
-      api.get('/tools'),
-      api.get('/sellers'),
-      api.get('/keys'),
       api.get('/subjects'),
+      api.get('/tool-types'),
+      api.get('/pricing'),
     ])
-      .then(([sRes, tRes, selRes, kRes, subRes]) => {
-        setExamSessions(sRes.data);
-        setTools(tRes.data);
-        setSellers(selRes.data);
-        setKeys(kRes.data);
-        setSubjects(subRes.data);
+      .then(([sRes, tRes, pRes]) => {
+        setSubjects(sRes.data);
+        setToolTypes(tRes.data);
+        setPricing(pRes.data);
       })
       .catch(() => toast.error('Failed to load form data'))
       .finally(() => setLoading(false));
   }, []);
-  const sessionsForSubject = examSessions.filter(s => s.subjectId === form.subjectId);
-  const availableKeys = keys.filter(
-    k => k.status === 'available' && (!form.toolId || k.toolId === form.toolId) && (!form.keyType || k.type === form.keyType)
-  );
 
-  const update = <K extends keyof FormData>(field: K, value: FormData[K]) => {
+  const updateField = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     setForm(prev => ({ ...prev, [field]: value }));
-    setErrors(prev => ({ ...prev, [field]: undefined }));
   };
 
-  const validate = () => {
-    const e: Partial<Record<keyof FormData, string>> = {};
-    if (!form.studentId.trim()) e.studentId = 'Required';
-    else if (form.studentId.length > 20) e.studentId = 'Max 20 characters';
-    if (!form.customerName.trim()) e.customerName = 'Required';
-    else if (form.customerName.length > 100) e.customerName = 'Max 100 characters';
-    if (!form.subjectId) e.subjectId = 'Required';
-    if (!form.examSessionId) e.examSessionId = 'Required';
-    if (form.note.length > 500) e.note = 'Max 500 characters';
-    setErrors(e);
-    return Object.keys(e).length === 0;
+  const updateDate = (dateIndex: number, date: string) => {
+    setForm(prev => {
+      const dates = prev.dates.map((d, i) => i === dateIndex ? { ...d, date } : d);
+      return { ...prev, dates };
+    });
   };
 
-  const handleSubmit = async (ev: React.FormEvent) => {
-    ev.preventDefault();
-    if (!validate()) {
-      toast.error('Please fix the highlighted fields');
+  const addDate = () => {
+    setForm(prev => ({
+      ...prev,
+      dates: [...prev.dates, emptyDate()],
+    }));
+  };
+
+  const removeDate = (dateIndex: number) => {
+    setForm(prev => ({
+      ...prev,
+      dates: prev.dates.filter((_, i) => i !== dateIndex),
+    }));
+  };
+
+  const updateSubject = (dateIndex: number, subjectIndex: number, subjectId: string) => {
+    setForm(prev => {
+      const dates = prev.dates.map((d, di) => {
+        if (di !== dateIndex) return d;
+        const subjects = d.subjects.map((s, si) => si === subjectIndex ? { ...s, subjectId, examTypes: [] } : s);
+        return { ...d, subjects };
+      });
+      return { ...prev, dates };
+    });
+  };
+
+  const addSubject = (dateIndex: number) => {
+    setForm(prev => {
+      const dates = prev.dates.map((d, di) => {
+        if (di !== dateIndex) return d;
+        return { ...d, subjects: [...d.subjects, emptySubject()] };
+      });
+      return { ...prev, dates };
+    });
+  };
+
+  const removeSubject = (dateIndex: number, subjectIndex: number) => {
+    setForm(prev => {
+      const dates = prev.dates.map((d, di) => {
+        if (di !== dateIndex) return d;
+        return { ...d, subjects: d.subjects.filter((_, si) => si !== subjectIndex) };
+      });
+      return { ...prev, dates };
+    });
+  };
+
+  const toggleExamType = (dateIndex: number, subjectIndex: number, examType: ExamTypeSlot) => {
+    setForm(prev => {
+      const dates = prev.dates.map((d, di) => {
+        if (di !== dateIndex) return d;
+        const subjects = d.subjects.map((s, si) => {
+          if (si !== subjectIndex) return s;
+          const existing = s.examTypes.find(et => et.type === examType);
+          if (existing) {
+            return { ...s, examTypes: s.examTypes.filter(et => et.type !== examType) };
+          }
+          if (s.examTypes.length >= 2) return s;
+          return { ...s, examTypes: [...s.examTypes, { type: examType, time: '' }] };
+        });
+        return { ...d, subjects };
+      });
+      return { ...prev, dates };
+    });
+  };
+
+  const updateExamTime = (dateIndex: number, subjectIndex: number, examType: ExamTypeSlot, time: string) => {
+    setForm(prev => {
+      const dates = prev.dates.map((d, di) => {
+        if (di !== dateIndex) return d;
+        const subjects = d.subjects.map((s, si) => {
+          if (si !== subjectIndex) return s;
+          const examTypes = s.examTypes.map(et => et.type === examType ? { ...et, time } : et);
+          return { ...s, examTypes };
+        });
+        return { ...d, subjects };
+      });
+      return { ...prev, dates };
+    });
+  };
+
+  const selectedSubjectIds = (dateIndex: number): string[] => {
+    return form.dates[dateIndex]?.subjects.filter(s => s.subjectId).map(s => s.subjectId) || [];
+  };
+
+  const calcPricePreview = useMemo(() => {
+    if (!pricing) return null;
+    const toolPrice = form.toolPackage === 'day' ? pricing.toolDayPrice : pricing.toolTermPrice;
+    let feCount = 0;
+    let peCount = 0;
+    for (const d of form.dates) {
+      for (const s of d.subjects) {
+        for (const et of s.examTypes) {
+          if (et.type === 'FE' || et.type === 'RETAKE_FE') feCount++;
+          if (et.type === 'PE' || et.type === 'RETAKE_PE') peCount++;
+        }
+      }
+    }
+    const subtotal = toolPrice + feCount * pricing.feSlotPrice + peCount * pricing.peSlotPrice;
+    const total = Math.max(subtotal - (pricing.discountEnabled ? pricing.discountAmount : 0), 0);
+    return { toolPrice, feCount, peCount, subtotal, discount: pricing.discountEnabled ? pricing.discountAmount : 0, total };
+  }, [form, pricing]);
+
+  const validate = (): string[] => {
+    const errors: string[] = [];
+    if (!form.customerName.trim()) errors.push(t('validation.required') + ': ' + t('field.fullName'));
+    if (!form.studentId.trim()) errors.push(t('validation.required') + ': ' + t('field.studentId'));
+    if (!form.toolTypeId) errors.push(t('validation.required') + ': ' + t('field.toolType'));
+    if (form.dates.length === 0) errors.push(t('validation.required') + ': ' + t('field.examDate'));
+    if (form.toolPackage === 'day' && form.dates.length > 1) errors.push('Gói Ngày chỉ được một ngày thi');
+    const dateSet = new Set<string>();
+    for (let di = 0; di < form.dates.length; di++) {
+      const d = form.dates[di];
+      if (!d.date) { errors.push(`Ngày thi thứ ${di + 1}: ` + t('validation.required')); continue; }
+      if (dateSet.has(d.date)) { errors.push(`Ngày ${d.date}: ` + t('validation.duplicateDate')); }
+      dateSet.add(d.date);
+      if (d.subjects.length === 0) { errors.push(`Ngày ${d.date}: ` + t('validation.required') + ' môn thi'); continue; }
+      const subjSet = new Set<string>();
+      for (let si = 0; si < d.subjects.length; si++) {
+        const s = d.subjects[si];
+        if (!s.subjectId) { errors.push(`Ngày ${d.date}, môn ${si + 1}: ` + t('validation.selectSubject')); continue; }
+        if (subjSet.has(s.subjectId)) { errors.push(`Ngày ${d.date}: ${s.subjectId} ` + t('validation.duplicateSubject')); }
+        subjSet.add(s.subjectId);
+        if (s.examTypes.length === 0) { errors.push(`Ngày ${d.date}, môn ${s.subjectId}: ` + t('validation.selectExamType')); continue; }
+        for (const et of s.examTypes) {
+          if (!et.time || !TIME_REGEX.test(et.time)) {
+            errors.push(`Ngày ${d.date}, môn ${s.subjectId}, ${et.type}: ` + t('validation.invalidTime'));
+          }
+        }
+      }
+    }
+    return errors;
+  };
+
+  const handleSubmit = async () => {
+    const errors = validate();
+    if (errors.length > 0) {
+      toast.error(errors.join('\n'), { duration: 5000 });
       return;
     }
     setSubmitting(true);
     try {
-      await api.post('/registrations', {
-        studentId: form.studentId.trim(),
+      const payload = {
         customerName: form.customerName.trim(),
-        subjectId: form.subjectId,
-        examSessionId: form.examSessionId,
-        toolId: form.toolId || null,
-        keyCode: form.keyCode || null,
-        keyType: form.keyType || null,
-        sellerId: form.sellerId,
-        processStatus: form.processStatus,
-        note: form.note,
-      });
+        studentId: form.studentId.trim(),
+        toolTypeId: form.toolTypeId,
+        toolPackage: form.toolPackage,
+        dates: form.dates,
+        note: form.note.trim(),
+      };
+      const res = await api.post('/tool-registrations', payload);
+      setSubmittedId(res.data._id);
+      setSubmittedPrice(res.data.totalPrice);
       setSubmitted(true);
-      toast.success('Registration submitted');
-    } catch {
-      toast.error('Failed to submit registration. Please try again.');
+      toast.success(t('app.success.title'));
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to submit registration';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
   };
 
   const resetForm = () => {
-    setForm(emptyForm);
+    setForm(initialForm);
     setSubmitted(false);
+    setSubmittedId('');
+    setSubmittedPrice(0);
   };
 
   if (loading) {
@@ -151,14 +278,15 @@ export default function GuestRegisterPage() {
               <CheckCircle2 className="w-7 h-7" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold">Registration received</h2>
+              <h2 className="text-xl font-semibold">{t('app.success.title')}</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Thanks, <span className="font-medium text-foreground">{form.customerName}</span>. Our support team will process your request shortly.
+                {t('app.success.message', { name: form.customerName, id: submittedId.slice(-6).toUpperCase() })}
               </p>
+              <p className="text-lg font-bold mt-2">{formatVND(submittedPrice)}</p>
             </div>
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" className="flex-1" onClick={resetForm}>Submit another</Button>
-              <Button asChild className="flex-1"><Link to="/">Go home</Link></Button>
+              <Button variant="outline" className="flex-1" onClick={resetForm}>{t('app.success.submitAnother')}</Button>
+              <Button asChild className="flex-1"><Link to="/">{t('app.success.goHome')}</Link></Button>
             </div>
           </CardContent>
         </Card>
@@ -168,167 +296,261 @@ export default function GuestRegisterPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/40 to-background">
-      <div className="max-w-2xl mx-auto px-4 py-10">
+      <div className="max-w-3xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold leading-tight">Exam Support</h1>
-              <p className="text-xs text-muted-foreground">Quick registration form</p>
+              <h1 className="text-lg font-semibold leading-tight">{t('app.title')}</h1>
+              <p className="text-xs text-muted-foreground">{t('app.subtitle')}</p>
             </div>
           </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/"><ArrowLeft className="w-4 h-4 mr-1" />Admin</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={language === 'vi' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setLanguage('vi')}
+            >
+              VI
+            </Button>
+            <Button
+              variant={language === 'en' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setLanguage('en')}
+            >
+              EN
+            </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/"><ArrowLeft className="w-4 h-4 mr-1" />{t('app.admin')}</Link>
+            </Button>
+          </div>
         </div>
 
         <Card className="border-0 shadow-xl shadow-foreground/5">
-          <CardContent className="p-6 sm:p-8">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold tracking-tight">Register for exam support</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Fill in your details — it takes less than a minute.
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-5">
+          <CardContent className="p-6 sm:p-8 space-y-6">
+            <div className="space-y-5">
               <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Student ID" error={errors.studentId} required>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">{t('field.fullName')} <span className="text-destructive">*</span></Label>
                   <Input
-                    placeholder="e.g. STU001"
-                    value={form.studentId}
-                    onChange={e => update('studentId', e.target.value)}
-                    maxLength={20}
-                  />
-                </Field>
-                <Field label="Customer Name" error={errors.customerName} required>
-                  <Input
-                    placeholder="Full name"
+                    placeholder={t('field.fullName')}
                     value={form.customerName}
-                    onChange={e => update('customerName', e.target.value)}
+                    onChange={e => updateField('customerName', e.target.value)}
                     maxLength={100}
                   />
-                </Field>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">{t('field.studentId')} <span className="text-destructive">*</span></Label>
+                  <Input
+                    placeholder="MSSV"
+                    value={form.studentId}
+                    onChange={e => updateField('studentId', e.target.value)}
+                    maxLength={20}
+                  />
+                </div>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Subject" error={errors.subjectId} required>
-                  <Select value={form.subjectId} onValueChange={v => { update('subjectId', v); update('examSessionId', ''); }}>
-                    <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">{t('field.toolType')} <span className="text-destructive">*</span></Label>
+                  <Select value={form.toolTypeId} onValueChange={v => updateField('toolTypeId', v)}>
+                    <SelectTrigger><SelectValue placeholder="Chọn loại tool" /></SelectTrigger>
                     <SelectContent>
-                      {subjects.map((s: any) => <SelectItem key={s._id} value={s.subjectId}>{s.subjectId} — {s.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Exam Session" error={errors.examSessionId} required>
-                  <Select value={form.examSessionId} onValueChange={v => update('examSessionId', v)} disabled={!form.subjectId}>
-                    <SelectTrigger><SelectValue placeholder={form.subjectId ? 'Pick a session' : 'Select subject first'} /></SelectTrigger>
-                    <SelectContent>
-                      {sessionsForSubject.map(s => (
-                        <SelectItem key={s._id} value={s._id}>
-                          {s.date} {s.startTime}-{s.endTime} ({s.type})
-                        </SelectItem>
+                      {toolTypes.map(tt => (
+                        <SelectItem key={tt._id} value={tt._id}>{tt.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </Field>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">{t('field.toolPackage')} <span className="text-destructive">*</span></Label>
+                  <RadioGroup
+                    value={form.toolPackage}
+                    onValueChange={v => updateField('toolPackage', v as 'day' | 'term')}
+                    className="flex gap-4 pt-1"
+                  >
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="day" id="pkg-day" />
+                      <Label htmlFor="pkg-day" className="font-normal">{t('package.day')} ({formatVND(pricing?.toolDayPrice || 800000)})</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="term" id="pkg-term" />
+                      <Label htmlFor="pkg-term" className="font-normal">{t('package.term')} ({formatVND(pricing?.toolTermPrice || 1800000)})</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Tool">
-                  <Select value={form.toolId} onValueChange={v => { update('toolId', v); update('keyCode', ''); }}>
-                    <SelectTrigger><SelectValue placeholder="Select tool (optional)" /></SelectTrigger>
-                    <SelectContent>
-                      {tools.map(t => <SelectItem key={t._id} value={t._id}>{t.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Key Type">
-                  <Select value={form.keyType} onValueChange={v => { update('keyType', v as KeyType); update('keyCode', ''); }}>
-                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="by_day">By Day</SelectItem>
-                      <SelectItem value="by_term">By Term</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">{t('field.examDate')}</Label>
+                  {form.toolPackage === 'term' && (
+                    <Button type="button" variant="outline" size="sm" onClick={addDate}>
+                      <Plus className="w-4 h-4 mr-1" />{t('action.addDate')}
+                    </Button>
+                  )}
+                </div>
+
+                {form.dates.map((dateItem, dateIndex) => (
+                  <div key={dateIndex} className="border rounded-lg p-4 space-y-4 bg-muted/20">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 space-y-1.5">
+                        <Label className="text-xs">{t('field.examDate')} {dateIndex + 1}</Label>
+                        <Input
+                          type="date"
+                          value={dateItem.date}
+                          onChange={e => updateDate(dateIndex, e.target.value)}
+                        />
+                      </div>
+                      {form.dates.length > 1 && (
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 mt-5 text-destructive" onClick={() => removeDate(dateIndex)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      {dateItem.subjects.map((subjectItem, subjectIndex) => {
+                        const usedSubjectIds = selectedSubjectIds(dateIndex).filter(id => id !== subjectItem.subjectId);
+                        return (
+                          <div key={subjectIndex} className="border rounded p-3 space-y-3 bg-background">
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1 space-y-1.5">
+                                <Label className="text-xs">{t('field.subject')}</Label>
+                                <Select
+                                  value={subjectItem.subjectId}
+                                  onValueChange={v => updateSubject(dateIndex, subjectIndex, v)}
+                                >
+                                  <SelectTrigger><SelectValue placeholder={t('action.selectSubject')} /></SelectTrigger>
+                                  <SelectContent>
+                                    {subjects
+                                      .filter((s: any) => !usedSubjectIds.includes(s.subjectId))
+                                      .map((s: any) => (
+                                        <SelectItem key={s._id} value={s.subjectId}>{s.subjectId} — {s.name}</SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              {dateItem.subjects.length > 1 && (
+                                <Button type="button" variant="ghost" size="icon" className="h-9 w-9 mt-5 text-destructive" onClick={() => removeSubject(dateIndex, subjectIndex)}>
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+
+                            {subjectItem.subjectId && (
+                              <>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">{t('field.examType')} ({t('validation.maxExamTypes')})</Label>
+                                  <div className="flex flex-wrap gap-3">
+                                    {ALL_EXAM_TYPES.map(et => {
+                                      const checked = subjectItem.examTypes.some(e => e.type === et);
+                                      const disabled = !checked && subjectItem.examTypes.length >= 2;
+                                      return (
+                                        <div key={et} className="flex items-center gap-1.5">
+                                          <Checkbox
+                                            id={`et-${dateIndex}-${subjectIndex}-${et}`}
+                                            checked={checked}
+                                            disabled={disabled}
+                                            onCheckedChange={() => toggleExamType(dateIndex, subjectIndex, et)}
+                                          />
+                                          <Label htmlFor={`et-${dateIndex}-${subjectIndex}-${et}`} className="text-sm font-normal cursor-pointer">
+                                            {t(`examType.${et}`)}
+                                          </Label>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                  {subjectItem.examTypes.map(et => (
+                                    <div key={et.type} className="space-y-1.5">
+                                      <Label className="text-xs">{t('examType.' + et.type)} — {t('field.time')}</Label>
+                                      <Input
+                                        type="time"
+                                        value={et.time}
+                                        onChange={e => updateExamTime(dateIndex, subjectIndex, et.type, e.target.value)}
+                                        placeholder="HH:mm"
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <Button type="button" variant="ghost" size="sm" onClick={() => addSubject(dateIndex)}>
+                        <Plus className="w-4 h-4 mr-1" />{t('action.addSubject')}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Key Code">
-                  <Select value={form.keyCode} onValueChange={v => update('keyCode', v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={availableKeys.length ? 'Pick a key' : 'No keys available'} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableKeys.map(k => (
-                        <SelectItem key={k._id} value={k.keyCode}>{k.keyCode}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Seller">
-                  <Select value={form.sellerId} onValueChange={v => update('sellerId', v)}>
-                    <SelectTrigger><SelectValue placeholder="Select seller" /></SelectTrigger>
-                    <SelectContent>
-                      {sellers.map(s => <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-
-              <Field label="Note" error={errors.note}>
-                <Textarea
-                  placeholder="Anything we should know? (optional)"
-                  rows={3}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">{t('field.note')}</Label>
+                <Input
+                  placeholder="Ghi chú (không bắt buộc)"
                   value={form.note}
-                  onChange={e => update('note', e.target.value)}
+                  onChange={e => updateField('note', e.target.value)}
                   maxLength={500}
                 />
-                <p className="text-xs text-muted-foreground text-right mt-1">{form.note.length}/500</p>
-              </Field>
+              </div>
+
+              {calcPricePreview && (
+                <div className="rounded-lg bg-muted p-4 space-y-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <span>{t('price.tool')}</span>
+                    <span className="font-medium">{formatVND(calcPricePreview.toolPrice)}</span>
+                  </div>
+                  {calcPricePreview.feCount > 0 && (
+                    <div className="flex justify-between">
+                      <span>{t('price.feSlots')} x{calcPricePreview.feCount}</span>
+                      <span className="font-medium">{formatVND(calcPricePreview.feCount * (pricing?.feSlotPrice || 200000))}</span>
+                    </div>
+                  )}
+                  {calcPricePreview.peCount > 0 && (
+                    <div className="flex justify-between">
+                      <span>{t('price.peSlots')} x{calcPricePreview.peCount}</span>
+                      <span className="font-medium">{formatVND(calcPricePreview.peCount * (pricing?.peSlotPrice || 0))}</span>
+                    </div>
+                  )}
+                  {calcPricePreview.discount > 0 && (
+                    <div className="flex justify-between text-destructive">
+                      <span>{t('price.discount')}</span>
+                      <span className="font-medium">-{formatVND(calcPricePreview.discount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-base pt-1 border-t">
+                    <span>{t('price.total')}</span>
+                    <span>{formatVND(calcPricePreview.total)}</span>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-2">
                 <Button type="button" variant="outline" className="flex-1" onClick={resetForm} disabled={submitting}>
-                  Clear
+                  {t('app.reset')}
                 </Button>
-                <Button type="submit" className="flex-1" disabled={submitting}>
+                <Button type="button" className="flex-1" onClick={handleSubmit} disabled={submitting}>
                   {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-                  {submitting ? 'Submitting...' : 'Submit'}
+                  {submitting ? t('app.submitting') : t('app.submit')}
                 </Button>
               </div>
-            </form>
+            </div>
           </CardContent>
         </Card>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          Your information is only used to process your exam support request.
+          Thông tin chỉ được sử dụng để xử lý đăng ký tool hỗ trợ thi.
         </p>
       </div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  children,
-  error,
-  required,
-}: {
-  label: string;
-  children: React.ReactNode;
-  error?: string;
-  required?: boolean;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-sm font-medium">
-        {label} {required && <span className="text-destructive">*</span>}
-      </Label>
-      {children}
-      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

@@ -1,0 +1,56 @@
+{
+  "app.title": "Tool Registration",
+  "app.subtitle": "Exam support tool registration form",
+  "app.admin": "Admin",
+  "app.submit": "Submit",
+  "app.submitting": "Submitting...",
+  "app.reset": "Reset",
+  "app.success.title": "Registration Successful",
+  "app.success.message": "Thank you {name}. Your registration has been recorded. Registration ID: {id}",
+  "app.success.submitAnother": "Submit Another",
+  "app.success.goHome": "Go Home",
+
+  "field.fullName": "Full Name",
+  "field.studentId": "Student ID",
+  "field.toolType": "Tool Type",
+  "field.toolPackage": "Tool Package",
+  "field.examDate": "Exam Date",
+  "field.subject": "Subject",
+  "field.examType": "Exam Type",
+  "field.time": "Time",
+  "field.totalPrice": "Total Price",
+  "field.note": "Note",
+
+  "package.day": "Day",
+  "package.term": "Term",
+
+  "examType.PE": "PE",
+  "examType.FE": "FE",
+  "examType.RETAKE_PE": "RETAKE PE",
+  "examType.RETAKE_FE": "RETAKE FE",
+
+  "action.addDate": "Add Exam Date",
+  "action.removeDate": "Remove Date",
+  "action.addSubject": "Add Subject",
+  "action.removeSubject": "Remove Subject",
+  "action.selectSubject": "Select a subject",
+
+  "price.tool": "Tool",
+  "price.feSlots": "FE Slots",
+  "price.peSlots": "PE Slots",
+  "price.discount": "Discount",
+  "price.total": "Total",
+
+  "validation.required": "This field is required",
+  "validation.maxLength": "Max {max} characters",
+  "validation.selectSubject": "Select a subject",
+  "validation.selectExamType": "Select at least 1 exam type",
+  "validation.maxExamTypes": "Maximum 2 exam types",
+  "validation.enterTime": "Enter exam time",
+  "validation.invalidTime": "Invalid time format (HH:mm)",
+  "validation.duplicateSubject": "Subject already selected for this date",
+  "validation.duplicateDate": "Duplicate exam date",
+
+  "language.vi": "Tiếng Việt",
+  "language.en": "English"
+}

@@ -13,6 +13,7 @@ import {
   LogOut,
   Lock,
   User,
+  DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
@@ -21,10 +22,12 @@ import ChangePasswordDialog from './ChangePasswordDialog';
 const navItems = [
   { title: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { title: 'Registrations', path: '/registrations', icon: ClipboardList },
+  { title: 'Tool Registrations', path: '/tool-registrations', icon: ClipboardList },
   { title: 'Exam Sessions', path: '/sessions', icon: Calendar },
   { title: 'Subjects', path: '/subjects', icon: BookOpen },
   { title: 'Terms', path: '/terms', icon: School },
   { title: 'Keys', path: '/keys', icon: KeyRound },
+  { title: 'Pricing', path: '/pricing', icon: DollarSign },
   { title: 'Import Data', path: '/import', icon: Upload },
 ];
 

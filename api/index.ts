@@ -11,6 +11,9 @@ import sellerRoutes from '../backend/routes/sellers.js';
 import subjectRoutes from '../backend/routes/subjects.js';
 import termRoutes from '../backend/routes/terms.js';
 import dashboardRoutes from '../backend/routes/dashboard.js';
+import toolTypeRoutes from '../backend/routes/toolTypes.js';
+import pricingRoutes from '../backend/routes/pricing.js';
+import toolRegistrationRoutes from '../backend/routes/toolRegistrations.js';
 
 const app = express();
 
@@ -37,6 +40,9 @@ app.use('/api/sellers', sellerRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/terms', termRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/tool-types', toolTypeRoutes);
+app.use('/api/pricing', pricingRoutes);
+app.use('/api/tool-registrations', toolRegistrationRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
