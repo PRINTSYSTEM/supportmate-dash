@@ -80,11 +80,14 @@ export default function ToolRegistrationsPage() {
       }
     });
 
+    const totalAllSupportPrice = siblingRegs.reduce((sum: number, reg: any) => sum + (reg.supportPrice || 0), 0);
+
     return {
       numSubjects,
       feSuccessCount,
       peSuccessCount,
       totalSupportPrice,
+      totalAllSupportPrice,
     };
   };
 
@@ -232,6 +235,8 @@ export default function ToolRegistrationsPage() {
                       <TableHead>Tool</TableHead>
                       <TableHead>Gói</TableHead>
                       <TableHead>Mã Key</TableHead>
+                      <TableHead>Giá Tool</TableHead>
+                      <TableHead>Giá Support</TableHead>
                       <TableHead>Tổng tiền</TableHead>
                       <TableHead>Trạng thái</TableHead>
                       <TableHead className="text-right">Thao tác</TableHead>
@@ -247,11 +252,13 @@ export default function ToolRegistrationsPage() {
                         <TableCell className="text-sm">{getToolTypeName(r.toolTypeId)}</TableCell>
                         <TableCell className="text-sm">{getToolPackageLabel(r.toolPackage)}</TableCell>
                         <TableCell className="text-sm font-mono">{r.keyCode || '—'}</TableCell>
+                        <TableCell className="text-sm font-semibold whitespace-nowrap">{formatVND(r.priceSnapshot?.toolPrice ?? 0)}</TableCell>
+                        <TableCell className="text-sm font-semibold text-emerald-600 whitespace-nowrap">{formatVND(getToolRegStats(r._id).totalAllSupportPrice)}</TableCell>
                         <TableCell className="text-sm">
-                          <div className="font-semibold text-foreground">{formatVND(r.totalPrice)}</div>
+                          <div className="font-bold text-foreground">{formatVND(r.totalPrice)}</div>
                           {getToolRegStats(r._id).totalSupportPrice > 0 && (
                             <div className="text-[10px] text-emerald-600 font-semibold mt-0.5 whitespace-nowrap bg-emerald-50 border border-emerald-200 rounded px-1 py-0.5 inline-block">
-                              + SP: {formatVND(getToolRegStats(r._id).totalSupportPrice)}
+                              Đã hoàn thành: {formatVND(getToolRegStats(r._id).totalSupportPrice)}
                             </div>
                           )}
                         </TableCell>
@@ -305,7 +312,7 @@ export default function ToolRegistrationsPage() {
             <DialogHeader>
               <DialogTitle>Chi tiết — {modalReg.customerName}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-2">
+            <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-2">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div><Label className="text-muted-foreground">MSSV</Label><p className="font-medium">{modalReg.studentId}</p></div>
                 <div><Label className="text-muted-foreground">Họ tên</Label><p className="font-medium">{modalReg.customerName}</p></div>

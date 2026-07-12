@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Pencil, Loader2, Upload } from 'lucide-react';
+import { Plus, Pencil, Loader2, Upload, Trash2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -76,6 +76,15 @@ export default function ExamSessionsPage() {
     onError: () => toast.error('Failed to update session'),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/sessions/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      toast.success('Đã xóa ca thi');
+    },
+    onError: () => toast.error('Không thể xóa ca thi'),
+  });
+
   const openNew = () => {
     setIsNew(true);
     setEditSession({ _id: '', ...emptySession } as SessionData);
@@ -116,7 +125,6 @@ export default function ExamSessionsPage() {
                   <TableRow className="bg-muted/50">
                     <TableHead>Date</TableHead>
                     <TableHead>Start</TableHead>
-                    <TableHead>End</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Campus</TableHead>
@@ -130,16 +138,30 @@ export default function ExamSessionsPage() {
                     <TableRow key={s._id} className="hover:bg-muted/30">
                       <TableCell className="text-sm">{s.date}</TableCell>
                       <TableCell className="text-sm">{s.startTime}</TableCell>
-                      <TableCell className="text-sm">{s.endTime}</TableCell>
                       <TableCell className="text-sm font-medium">{s.subjectId}</TableCell>
                       <TableCell><Badge variant={s.type === 'PE' ? 'default' : 'secondary'}>{s.type}</Badge></TableCell>
                       <TableCell className="text-sm">{s.campus}</TableCell>
                       <TableCell className="text-sm">{s.term}</TableCell>
                       <TableCell className="text-sm font-medium">{s.studentCount}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditSession(s); setIsNew(false); }}>
-                          <Pencil className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-1 justify-end">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditSession(s); setIsNew(false); }}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              if (confirm('Bạn có chắc chắn muốn xóa ca thi này?')) {
+                                deleteMutation.mutate(s._id);
+                              }
+                            }}
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

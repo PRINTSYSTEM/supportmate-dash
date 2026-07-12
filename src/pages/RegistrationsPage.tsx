@@ -14,7 +14,7 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 import { ProcessStatus, KeyType } from '@/data/types';
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
 
 interface RegistrationItem {
   _id: string;
@@ -67,7 +67,7 @@ export default function RegistrationsPage() {
 
   const { data: regsData, isLoading } = useQuery({
     queryKey: ['registrations'],
-    queryFn: () => api.get('/registrations').then(r => r.data),
+    queryFn: () => api.get('/registrations', { params: { limit: 1000 } }).then(r => r.data),
   });
 
   const regs: RegistrationItem[] = regsData?.items ?? [];
@@ -91,7 +91,7 @@ export default function RegistrationsPage() {
   };
 
   const filtered = useMemo(() => {
-    return regs.filter(r => {
+    const list = regs.filter(r => {
       const matchSearch = !search || r.studentId.toLowerCase().includes(search.toLowerCase()) || r.customerName.toLowerCase().includes(search.toLowerCase());
       const matchStatus = filterStatus === 'all' || r.processStatus === filterStatus;
       const matchSubject = filterSubject === 'all' || r.subjectId === filterSubject;
@@ -102,6 +102,22 @@ export default function RegistrationsPage() {
       const matchDate = !filterDate || (session && session.date === filterDate);
       
       return matchSearch && matchStatus && matchSubject && matchCampus && matchExamType && matchDate;
+    });
+
+    // Sort by exam date (ngày thi), then by exam time (giờ thi) - ascending
+    return list.sort((a, b) => {
+      const sessionA = getSession(a.examSessionId);
+      const sessionB = getSession(b.examSessionId);
+
+      const dateA = sessionA?.date || '';
+      const dateB = sessionB?.date || '';
+      if (dateA !== dateB) {
+        return dateA.localeCompare(dateB);
+      }
+
+      const timeA = sessionA?.startTime || '';
+      const timeB = sessionB?.startTime || '';
+      return timeA.localeCompare(timeB);
     });
   }, [regs, search, filterStatus, filterSubject, filterCampus, filterExamType, filterDate, sessionsData]);
 

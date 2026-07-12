@@ -38,6 +38,7 @@ export function AssignToolModal({ registration, onClose }: Props) {
   const [supportPrice, setSupportPrice] = useState('');
   const [status, setStatus] = useState<ProcessStatus>(registration.processStatus);
   const [note, setNote] = useState(registration.note);
+  const [examType, setExamType] = useState<'PE' | 'FE' | ''>('');
 
   const { data: tools = [] } = useQuery({
     queryKey: ['tools'],
@@ -52,6 +53,12 @@ export function AssignToolModal({ registration, onClose }: Props) {
   const session = sessions.find((s: any) => s._id === registration.examSessionId);
 
   useEffect(() => {
+    if (session) {
+      setExamType(session.type);
+    }
+  }, [session]);
+
+  useEffect(() => {
     if (registration.supportPrice !== undefined && registration.supportPrice !== null) {
       setSupportPrice((registration.supportPrice / 1000).toString());
     } else if (session) {
@@ -62,6 +69,15 @@ export function AssignToolModal({ registration, onClose }: Props) {
       }
     }
   }, [registration.supportPrice, session]);
+
+  const handleExamTypeChange = (newType: 'PE' | 'FE') => {
+    setExamType(newType);
+    if (newType === 'FE' && !supportPrice) {
+      setSupportPrice('200');
+    } else if (newType === 'PE' && supportPrice === '200') {
+      setSupportPrice('');
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.put(`/registrations/${registration._id}`, data),
@@ -83,6 +99,7 @@ export function AssignToolModal({ registration, onClose }: Props) {
       supportPrice: supportPrice ? parseFloat(supportPrice) * 1000 : null,
       processStatus: status,
       note,
+      examType: examType || null,
     });
   };
 
@@ -93,6 +110,16 @@ export function AssignToolModal({ registration, onClose }: Props) {
           <DialogTitle>Phân bổ Tool — {registration.customerName}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Loại thi</Label>
+            <Select value={examType} onValueChange={(v) => handleExamTypeChange(v as 'PE' | 'FE')}>
+              <SelectTrigger><SelectValue placeholder="Chọn loại thi" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PE">PE</SelectItem>
+                <SelectItem value="FE">FE</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Tool</Label>
             <Select value={toolId} onValueChange={setToolId}>
