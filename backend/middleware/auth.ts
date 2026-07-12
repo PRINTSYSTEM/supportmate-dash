@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'sup3r-s3cr3t-k3y-supportmate-2026';
 
 export interface AuthRequest extends Request {
   admin?: { id: string; username: string };
