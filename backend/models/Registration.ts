@@ -9,8 +9,11 @@ export interface IRegistration extends Document {
   keyCode: string | null;
   keyType: 'by_day' | 'by_term' | null;
   sellerId: string;
-  processStatus: 'pending' | 'assigned' | 'supporting' | 'done' | 'cancelled';
+  processStatus: 'pending' | 'assigned' | 'supporting' | 'done' | 'failed' | 'cancelled';
   note: string;
+  campus: string;
+  toolRegistrationId?: string | null;
+  supportPrice?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,10 +30,13 @@ const RegistrationSchema = new Schema<IRegistration>(
     sellerId: { type: String, required: true },
     processStatus: {
       type: String,
-      enum: ['pending', 'assigned', 'supporting', 'done', 'cancelled'],
+      enum: ['pending', 'assigned', 'supporting', 'done', 'failed', 'cancelled'],
       default: 'pending',
     },
     note: { type: String, default: '', maxlength: 500 },
+    campus: { type: String, required: true, default: 'HCM' },
+    toolRegistrationId: { type: String, default: null },
+    supportPrice: { type: Number, default: null },
   },
   { timestamps: true }
 );

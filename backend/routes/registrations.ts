@@ -1,15 +1,22 @@
 import { Router, Response } from 'express';
 import Registration from '../models/Registration.js';
+import ToolRegistration from '../models/ToolRegistration.js';
+import ExamSession from '../models/ExamSession.js';
 import { AuthRequest, requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
 router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { search, status, subject, page = '1', limit = '50' } = req.query;
+    const { search, status, subject, toolRegistrationId, date, page = '1', limit = '50' } = req.query;
     const filter: any = {};
     if (status) filter.processStatus = status;
     if (subject) filter.subjectId = subject;
+    if (toolRegistrationId) filter.toolRegistrationId = toolRegistrationId;
+    if (date) {
+      const sessionsOnDate = await ExamSession.find({ date }).lean();
+      filter.examSessionId = { $in: sessionsOnDate.map(s => s._id.toString()) };
+    }
     if (search) {
       filter.$or = [
         { studentId: { $regex: search, $options: 'i' } },
@@ -33,7 +40,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
 
 router.post('/', async (req: AuthRequest, res: Response) => {
   try {
-    const { studentId, customerName, subjectId, examSessionId, toolId, keyCode, keyType, sellerId, processStatus, note } = req.body;
+    const { studentId, customerName, subjectId, examSessionId, toolId, keyCode, keyType, sellerId, processStatus, note, supportPrice } = req.body;
     if (!studentId?.trim() || !customerName?.trim() || !subjectId || !examSessionId || !sellerId) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
@@ -48,6 +55,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       sellerId,
       processStatus: processStatus || 'pending',
       note: note || '',
+      supportPrice: supportPrice || null,
     });
     res.status(201).json(registration);
   } catch (err) {
@@ -63,6 +71,32 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
       runValidators: true,
     });
     if (!updated) return res.status(404).json({ message: 'Not found' });
+
+    // Sync back to ToolRegistration if linked
+    if (updated.toolRegistrationId) {
+      const siblings = await Registration.find({ toolRegistrationId: updated.toolRegistrationId }).lean();
+      
+      let parentStatus: 'pending' | 'assigned' | 'supporting' | 'done' | 'failed' | 'cancelled' = 'pending';
+      const allDone = siblings.every(s => s.processStatus === 'done');
+      const allCancelled = siblings.every(s => s.processStatus === 'cancelled');
+      const allFailed = siblings.every(s => s.processStatus === 'failed');
+      const anySupporting = siblings.some(s => s.processStatus === 'supporting');
+      const anyAssigned = siblings.some(s => s.processStatus === 'assigned');
+
+      if (allDone) parentStatus = 'done';
+      else if (allCancelled) parentStatus = 'cancelled';
+      else if (allFailed) parentStatus = 'failed';
+      else if (anySupporting) parentStatus = 'supporting';
+      else if (anyAssigned) parentStatus = 'assigned';
+
+      const updateFields: any = { processStatus: parentStatus };
+      if (req.body.keyCode !== undefined) {
+        updateFields.keyCode = req.body.keyCode;
+      }
+
+      await ToolRegistration.findByIdAndUpdate(updated.toolRegistrationId, { $set: updateFields });
+    }
+
     res.json(updated);
   } catch (err) {
     console.error('PUT /registrations error:', err);

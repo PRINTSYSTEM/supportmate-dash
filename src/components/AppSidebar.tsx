@@ -14,21 +14,23 @@ import {
   Lock,
   User,
   DollarSign,
+  Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import ChangePasswordDialog from './ChangePasswordDialog';
 
 const navItems = [
-  { title: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { title: 'Registrations', path: '/registrations', icon: ClipboardList },
-  { title: 'Tool Registrations', path: '/tool-registrations', icon: ClipboardList },
-  { title: 'Exam Sessions', path: '/sessions', icon: Calendar },
-  { title: 'Subjects', path: '/subjects', icon: BookOpen },
-  { title: 'Terms', path: '/terms', icon: School },
-  { title: 'Keys', path: '/keys', icon: KeyRound },
-  { title: 'Pricing', path: '/pricing', icon: DollarSign },
-  { title: 'Import Data', path: '/import', icon: Upload },
+  { title: 'Bảng điều khiển', path: '/dashboard', icon: LayoutDashboard },
+  { title: 'Hỗ trợ thi', path: '/registrations', icon: ClipboardList },
+  { title: 'Đăng ký Tool', path: '/tool-registrations', icon: ClipboardList },
+  { title: 'Quản lý Tool', path: '/tools', icon: Wrench },
+  { title: 'Ca thi', path: '/sessions', icon: Calendar },
+  { title: 'Môn học', path: '/subjects', icon: BookOpen },
+  { title: 'Học kỳ', path: '/terms', icon: School },
+  { title: 'Mã khóa (Key)', path: '/keys', icon: KeyRound },
+  { title: 'Cấu hình giá', path: '/pricing', icon: DollarSign },
+  { title: 'Nhập dữ liệu', path: '/import', icon: Upload },
 ];
 
 export function AppSidebar() {
@@ -58,9 +60,9 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="overflow-hidden">
               <h1 className="text-sm font-semibold text-sidebar-accent-foreground truncate">
-                Exam Support
+                Hỗ trợ thi
               </h1>
-              <p className="text-xs text-sidebar-foreground truncate">Management System</p>
+              <p className="text-xs text-sidebar-foreground truncate">Hệ thống quản lý</p>
             </div>
           )}
         </div>
@@ -96,14 +98,14 @@ export function AppSidebar() {
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
           >
             <Lock className="w-5 h-5 shrink-0" />
-            {!collapsed && <span>Change Password</span>}
+            {!collapsed && <span>Đổi mật khẩu</span>}
           </button>
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
           >
             <LogOut className="w-5 h-5 shrink-0" />
-            {!collapsed && <span>Logout</span>}
+            {!collapsed && <span>Đăng xuất</span>}
           </button>
         </div>
 

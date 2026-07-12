@@ -31,11 +31,12 @@ export interface IToolRegistration extends Document {
   toolPackage: 'day' | 'term';
   toolTypeId: string;
   keyCode: string | null;
-  processStatus: 'pending' | 'assigned' | 'done' | 'cancelled';
+  processStatus: 'pending' | 'assigned' | 'supporting' | 'done' | 'failed' | 'cancelled';
   dates: IToolDate[];
   priceSnapshot: IPriceSnapshot;
   totalPrice: number;
   note: string;
+  campus: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,7 +52,7 @@ const ExamTypeSlotSchema = new Schema<IExamTypeSlot>(
 const ToolSubjectSchema = new Schema<IToolSubject>(
   {
     subjectId: { type: String, required: true },
-    examTypes: { type: [ExamTypeSlotSchema], required: true, validate: [v => v.length >= 1 && v.length <= 2, 'Must select 1-2 exam types'] },
+    examTypes: { type: [ExamTypeSlotSchema], required: true, validate: [(v: IExamTypeSlot[]) => v.length >= 1 && v.length <= 2, 'Must select 1-2 exam types'] },
   },
   { _id: false }
 );
@@ -82,17 +83,18 @@ const ToolRegistrationSchema = new Schema<IToolRegistration>(
     studentId: { type: String, required: true, trim: true, maxlength: 20 },
     customerName: { type: String, required: true, trim: true, maxlength: 100 },
     toolPackage: { type: String, enum: ['day', 'term'], required: true },
-    toolTypeId: { type: String, required: true },
+    toolTypeId: { type: String, default: null },
     keyCode: { type: String, default: null },
     processStatus: {
       type: String,
-      enum: ['pending', 'assigned', 'done', 'cancelled'],
+      enum: ['pending', 'assigned', 'supporting', 'done', 'failed', 'cancelled'],
       default: 'pending',
     },
     dates: { type: [ToolDateSchema], required: true },
     priceSnapshot: { type: PriceSnapshotSchema, required: true },
     totalPrice: { type: Number, required: true, min: 0 },
     note: { type: String, default: '', maxlength: 500 },
+    campus: { type: String, required: true, default: 'HCM' },
   },
   { timestamps: true }
 );

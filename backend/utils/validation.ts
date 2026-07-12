@@ -20,10 +20,6 @@ export function validateToolRegistration(data: any): ValidationError[] {
     errors.push({ field: 'studentId', message: 'MSSV không được để trống' });
   }
 
-  if (!data.toolTypeId) {
-    errors.push({ field: 'toolTypeId', message: 'Phải chọn loại tool' });
-  }
-
   if (!data.toolPackage || !['day', 'term'].includes(data.toolPackage)) {
     errors.push({ field: 'toolPackage', message: 'Phải chọn gói tool (Ngày hoặc Kỳ)' });
   }
@@ -35,7 +31,7 @@ export function validateToolRegistration(data: any): ValidationError[] {
       errors.push({ field: 'dates', message: 'Gói Ngày chỉ được có một ngày thi' });
     }
 
-    const dateStrings = data.dates.map(d => d.date);
+    const dateStrings = data.dates.map((d: any) => d.date);
     const uniqueDates = new Set(dateStrings);
     if (uniqueDates.size !== dateStrings.length) {
       errors.push({ field: 'dates', message: 'Các ngày thi không được trùng nhau' });

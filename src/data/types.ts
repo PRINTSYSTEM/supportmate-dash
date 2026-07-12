@@ -1,4 +1,4 @@
-export type ProcessStatus = 'pending' | 'assigned' | 'supporting' | 'done' | 'cancelled';
+export type ProcessStatus = 'pending' | 'assigned' | 'supporting' | 'done' | 'failed' | 'cancelled';
 export type KeyType = 'by_day' | 'by_term';
 export type ExamType = 'PE' | 'FE';
 export type KeyStatus = 'available' | 'used';
@@ -16,6 +16,9 @@ export interface Registration {
   sellerId: string;
   processStatus: ProcessStatus;
   note: string;
+  campus: string;
+  supportPrice?: number | null;
+  toolRegistrationId?: string | null;
 }
 
 export interface ExamSession {
@@ -53,7 +56,7 @@ export interface Seller {
 // --- New types for Tool Registration ---
 
 export type ToolPackage = 'day' | 'term';
-export type ToolProcessStatus = 'pending' | 'assigned' | 'done' | 'cancelled';
+export type ToolProcessStatus = 'pending' | 'assigned' | 'supporting' | 'done' | 'failed' | 'cancelled';
 export type ExamTypeSlot = 'PE' | 'FE' | 'RETAKE_PE' | 'RETAKE_FE';
 
 export interface ExamTypeSlotData {
@@ -93,6 +96,7 @@ export interface ToolRegistration {
   priceSnapshot: PriceSnapshot;
   totalPrice: number;
   note: string;
+  campus: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -92,4 +92,8 @@
     background-color: hsl(0 84% 60% / 0.12);
     color: hsl(0 84% 50%);
   }
+  .status-failed {
+    background-color: hsl(0 84% 60% / 0.12);
+    color: hsl(0 84% 50%);
+  }
 }

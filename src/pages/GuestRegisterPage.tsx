@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
-import { GraduationCap, CheckCircle2, ArrowLeft, Send, Loader2, Plus, X, Trash2 } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { GraduationCap, CheckCircle2, ArrowLeft, Send, Loader2, Plus, X, Trash2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useTranslation } from '@/i18n';
@@ -40,7 +42,10 @@ interface FormState {
   toolPackage: 'day' | 'term';
   dates: ToolDate[];
   note: string;
+  campus: string;
 }
+
+const CAMPUSES = ['HCM', 'HL', 'CT', 'QN', 'DN'];
 
 const initialForm: FormState = {
   customerName: '',
@@ -49,6 +54,7 @@ const initialForm: FormState = {
   toolPackage: 'day',
   dates: [emptyDate()],
   note: '',
+  campus: 'HCM',
 };
 
 function formatVND(amount: number): string {
@@ -77,6 +83,9 @@ export default function GuestRegisterPage() {
         setSubjects(sRes.data);
         setToolTypes(tRes.data);
         setPricing(pRes.data);
+        if (tRes.data && tRes.data.length > 0) {
+          setForm(prev => ({ ...prev, toolTypeId: tRes.data[0]._id }));
+        }
       })
       .catch(() => toast.error('Failed to load form data'))
       .finally(() => setLoading(false));
@@ -240,6 +249,7 @@ export default function GuestRegisterPage() {
         toolPackage: form.toolPackage,
         dates: form.dates,
         note: form.note.trim(),
+        campus: form.campus,
       };
       const res = await api.post('/tool-registrations', payload);
       setSubmittedId(res.data._id);
@@ -282,7 +292,6 @@ export default function GuestRegisterPage() {
               <p className="text-sm text-muted-foreground mt-1">
                 {t('app.success.message', { name: form.customerName, id: submittedId.slice(-6).toUpperCase() })}
               </p>
-              <p className="text-lg font-bold mt-2">{formatVND(submittedPrice)}</p>
             </div>
             <div className="flex gap-2 pt-2">
               <Button variant="outline" className="flex-1" onClick={resetForm}>{t('app.success.submitAnother')}</Button>
@@ -296,7 +305,7 @@ export default function GuestRegisterPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/40 to-background">
-      <div className="max-w-3xl mx-auto px-4 py-10">
+      <div className="max-w-5xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
@@ -333,7 +342,7 @@ export default function GuestRegisterPage() {
         <Card className="border-0 shadow-xl shadow-foreground/5">
           <CardContent className="p-6 sm:p-8 space-y-6">
             <div className="space-y-5">
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-sm font-medium">{t('field.fullName')} <span className="text-destructive">*</span></Label>
                   <Input
@@ -352,47 +361,43 @@ export default function GuestRegisterPage() {
                     maxLength={20}
                   />
                 </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-sm font-medium">{t('field.toolType')} <span className="text-destructive">*</span></Label>
-                  <Select value={form.toolTypeId} onValueChange={v => updateField('toolTypeId', v)}>
-                    <SelectTrigger><SelectValue placeholder="Chọn loại tool" /></SelectTrigger>
+                  <Label className="text-sm font-medium">Cơ sở <span className="text-destructive">*</span></Label>
+                  <Select value={form.campus} onValueChange={v => updateField('campus', v)}>
+                    <SelectTrigger><SelectValue placeholder="Chọn cơ sở" /></SelectTrigger>
                     <SelectContent>
-                      {toolTypes.map(tt => (
-                        <SelectItem key={tt._id} value={tt._id}>{tt.name}</SelectItem>
+                      {CAMPUSES.map(c => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium">{t('field.toolPackage')} <span className="text-destructive">*</span></Label>
-                  <RadioGroup
-                    value={form.toolPackage}
-                    onValueChange={v => updateField('toolPackage', v as 'day' | 'term')}
-                    className="flex gap-4 pt-1"
-                  >
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="day" id="pkg-day" />
-                      <Label htmlFor="pkg-day" className="font-normal">{t('package.day')} ({formatVND(pricing?.toolDayPrice || 800000)})</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="term" id="pkg-term" />
-                      <Label htmlFor="pkg-term" className="font-normal">{t('package.term')} ({formatVND(pricing?.toolTermPrice || 1800000)})</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">{t('field.toolPackage')} <span className="text-destructive">*</span></Label>
+                <RadioGroup
+                  value={form.toolPackage}
+                  onValueChange={v => updateField('toolPackage', v as 'day' | 'term')}
+                  className="flex gap-6 pt-1"
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="day" id="pkg-day" />
+                    <Label htmlFor="pkg-day" className="font-normal">{t('package.day')}</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="term" id="pkg-term" />
+                    <Label htmlFor="pkg-term" className="font-normal">{t('package.term')}</Label>
+                  </div>
+                </RadioGroup>
               </div>
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium">{t('field.examDate')}</Label>
-                  {form.toolPackage === 'term' && (
-                    <Button type="button" variant="outline" size="sm" onClick={addDate}>
-                      <Plus className="w-4 h-4 mr-1" />{t('action.addDate')}
-                    </Button>
-                  )}
+                  <Button type="button" variant="outline" size="sm" onClick={addDate}>
+                    <Plus className="w-4 h-4 mr-1" />{t('action.addDate')}
+                  </Button>
                 </div>
 
                 {form.dates.map((dateItem, dateIndex) => (
@@ -472,41 +477,80 @@ export default function GuestRegisterPage() {
 
                                         {checked && examTypeVal && (
                                           <div className="flex items-center gap-1 shrink-0 animate-in fade-in duration-200">
-                                            <Select
-                                              value={currentHour}
-                                              onValueChange={(val) => {
-                                                const min = currentMinute || '00';
-                                                updateExamTime(dateIndex, subjectIndex, et, `${val}:${min}`);
-                                              }}
-                                            >
-                                              <SelectTrigger className="h-8 w-[60px] text-xs px-1.5 py-0">
-                                                <SelectValue placeholder="Giờ" />
-                                              </SelectTrigger>
-                                              <SelectContent className="max-h-[200px]">
-                                                {Array.from({ length: 24 }, (_, i) => {
-                                                  const val = i.toString().padStart(2, '0');
-                                                  return <SelectItem key={val} value={val} className="text-xs">{val}</SelectItem>;
-                                                })}
-                                              </SelectContent>
-                                            </Select>
-                                            <span className="text-muted-foreground text-xs">:</span>
-                                            <Select
-                                              value={currentMinute}
-                                              onValueChange={(val) => {
-                                                const hr = currentHour || '07';
-                                                updateExamTime(dateIndex, subjectIndex, et, `${hr}:${val}`);
-                                              }}
-                                            >
-                                              <SelectTrigger className="h-8 w-[60px] text-xs px-1.5 py-0">
-                                                <SelectValue placeholder="Phút" />
-                                              </SelectTrigger>
-                                              <SelectContent className="max-h-[200px]">
-                                                {Array.from({ length: 60 }, (_, i) => {
-                                                  const val = i.toString().padStart(2, '0');
-                                                  return <SelectItem key={val} value={val} className="text-xs">{val}</SelectItem>;
-                                                })}
-                                              </SelectContent>
-                                            </Select>
+                                            <Popover>
+                                              <PopoverTrigger asChild>
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  className={cn(
+                                                    "h-9 w-[110px] text-sm px-2.5 justify-between font-semibold border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/80 transition-colors shadow-sm",
+                                                    !examTypeVal.time && "text-emerald-700/60"
+                                                  )}
+                                                >
+                                                  <span className="truncate">
+                                                    {examTypeVal.time || "Giờ thi"}
+                                                  </span>
+                                                  <Clock className="w-4 h-4 text-emerald-600 ml-1 shrink-0" />
+                                                </Button>
+                                              </PopoverTrigger>
+                                              <PopoverContent className="w-[140px] p-0" align="end">
+                                                <div className="flex h-48 divide-x">
+                                                  {/* Hours Column */}
+                                                  <div className="flex-1 overflow-y-auto p-1 scrollbar-none">
+                                                    <div className="flex flex-col gap-0.5">
+                                                      {Array.from({ length: 17 }, (_, i) => {
+                                                        const h = (i + 6).toString().padStart(2, '0');
+                                                        const isSelected = currentHour === h;
+                                                        return (
+                                                          <button
+                                                            key={h}
+                                                            type="button"
+                                                            className={cn(
+                                                              "h-8 text-xs rounded transition-colors text-center w-full",
+                                                              isSelected
+                                                                ? "bg-primary text-primary-foreground font-semibold"
+                                                                : "hover:bg-muted"
+                                                            )}
+                                                            onClick={() => {
+                                                              const min = currentMinute || '00';
+                                                              updateExamTime(dateIndex, subjectIndex, et, `${h}:${min}`);
+                                                            }}
+                                                          >
+                                                            {h}
+                                                          </button>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  </div>
+                                                  {/* Minutes Column */}
+                                                  <div className="flex-1 overflow-y-auto p-1 scrollbar-none">
+                                                    <div className="flex flex-col gap-0.5">
+                                                      {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map((m) => {
+                                                        const isSelected = currentMinute === m;
+                                                        return (
+                                                          <button
+                                                            key={m}
+                                                            type="button"
+                                                            className={cn(
+                                                              "h-8 text-xs rounded transition-colors text-center w-full",
+                                                              isSelected
+                                                                ? "bg-primary text-primary-foreground font-semibold"
+                                                                : "hover:bg-muted"
+                                                            )}
+                                                            onClick={() => {
+                                                              const hr = currentHour || '07';
+                                                              updateExamTime(dateIndex, subjectIndex, et, `${hr}:${m}`);
+                                                            }}
+                                                          >
+                                                            {m}
+                                                          </button>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </PopoverContent>
+                                            </Popover>
                                           </div>
                                         )}
                                       </div>
@@ -536,36 +580,7 @@ export default function GuestRegisterPage() {
                 />
               </div>
 
-              {calcPricePreview && (
-                <div className="rounded-lg bg-muted p-4 space-y-1.5 text-sm">
-                  <div className="flex justify-between">
-                    <span>{t('price.tool')}</span>
-                    <span className="font-medium">{formatVND(calcPricePreview.toolPrice)}</span>
-                  </div>
-                  {calcPricePreview.feCount > 0 && (
-                    <div className="flex justify-between">
-                      <span>{t('price.feSlots')} x{calcPricePreview.feCount}</span>
-                      <span className="font-medium">{formatVND(calcPricePreview.feCount * (pricing?.feSlotPrice || 200000))}</span>
-                    </div>
-                  )}
-                  {calcPricePreview.peCount > 0 && (
-                    <div className="flex justify-between">
-                      <span>{t('price.peSlots')} x{calcPricePreview.peCount}</span>
-                      <span className="font-medium">{formatVND(calcPricePreview.peCount * (pricing?.peSlotPrice || 0))}</span>
-                    </div>
-                  )}
-                  {calcPricePreview.discount > 0 && (
-                    <div className="flex justify-between text-destructive">
-                      <span>{t('price.discount')}</span>
-                      <span className="font-medium">-{formatVND(calcPricePreview.discount)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-bold text-base pt-1 border-t">
-                    <span>{t('price.total')}</span>
-                    <span>{formatVND(calcPricePreview.total)}</span>
-                  </div>
-                </div>
-              )}
+
 
               <div className="flex gap-2 pt-2">
                 <Button type="button" variant="outline" className="flex-1" onClick={resetForm} disabled={submitting}>

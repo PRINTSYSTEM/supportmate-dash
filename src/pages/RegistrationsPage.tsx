@@ -7,9 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Pencil, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Search, Pencil, ChevronLeft, ChevronRight, Loader2, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { ProcessStatus, KeyType } from '@/data/types';
 
 const PAGE_SIZE = 8;
 
@@ -21,10 +23,12 @@ interface RegistrationItem {
   examSessionId: string;
   toolId: string | null;
   keyCode: string | null;
-  keyType: string | null;
+  keyType: KeyType | null;
   sellerId: string;
-  processStatus: string;
+  processStatus: ProcessStatus;
   note: string;
+  campus: string;
+  supportPrice?: number | null;
   createdAt: string;
 }
 
@@ -32,6 +36,9 @@ export default function RegistrationsPage() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSubject, setFilterSubject] = useState('all');
+  const [filterCampus, setFilterCampus] = useState('all');
+  const [filterExamType, setFilterExamType] = useState('all');
+  const [filterDate, setFilterDate] = useState('');
   const [page, setPage] = useState(0);
   const [modalReg, setModalReg] = useState<RegistrationItem | null>(null);
 
@@ -45,11 +52,6 @@ export default function RegistrationsPage() {
     queryFn: () => api.get('/tools').then(r => r.data),
   });
 
-  const { data: sellersData = [] } = useQuery({
-    queryKey: ['sellers'],
-    queryFn: () => api.get('/sellers').then(r => r.data),
-  });
-
   const { data: regsData, isLoading } = useQuery({
     queryKey: ['registrations'],
     queryFn: () => api.get('/registrations').then(r => r.data),
@@ -59,28 +61,46 @@ export default function RegistrationsPage() {
 
   const subjects = [...new Map((sessionsData as any[]).map(s => [s.subjectId, s.subjectId])).values()];
 
+  const getSession = (id: string) => (sessionsData as any[]).find(s => s._id === id);
+  const getTool = (id: string | null) => id ? (toolsData as any[]).find(t => t._id === id)?.name ?? '\u2014' : '\u2014';
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '\u2014';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`; // DD/MM/YYYY
+    }
+    return dateStr;
+  };
+
+  const formatVND = (amount: number): string => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  };
+
   const filtered = useMemo(() => {
     return regs.filter(r => {
       const matchSearch = !search || r.studentId.toLowerCase().includes(search.toLowerCase()) || r.customerName.toLowerCase().includes(search.toLowerCase());
       const matchStatus = filterStatus === 'all' || r.processStatus === filterStatus;
       const matchSubject = filterSubject === 'all' || r.subjectId === filterSubject;
-      return matchSearch && matchStatus && matchSubject;
+      const matchCampus = filterCampus === 'all' || r.campus === filterCampus;
+      
+      const session = getSession(r.examSessionId);
+      const matchExamType = filterExamType === 'all' || (session && session.type === filterExamType);
+      const matchDate = !filterDate || (session && session.date === filterDate);
+      
+      return matchSearch && matchStatus && matchSubject && matchCampus && matchExamType && matchDate;
     });
-  }, [regs, search, filterStatus, filterSubject]);
+  }, [regs, search, filterStatus, filterSubject, filterCampus, filterExamType, filterDate, sessionsData]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
-  const getSession = (id: string) => (sessionsData as any[]).find(s => s._id === id);
-  const getTool = (id: string | null) => id ? (toolsData as any[]).find(t => t._id === id)?.name ?? '\u2014' : '\u2014';
-  const getSeller = (id: string) => (sellersData as any[]).find(s => s._id === id)?.name ?? '\u2014';
 
   return (
     <DashboardLayout>
       <div className="space-y-5">
         <div>
-          <h1 className="text-2xl font-bold">Registrations</h1>
-          <p className="text-sm text-muted-foreground">Manage student exam support registrations</p>
+          <h1 className="text-2xl font-bold">Hỗ trợ thi</h1>
+          <p className="text-sm text-muted-foreground">Quản lý yêu cầu hỗ trợ thi của sinh viên</p>
         </div>
 
         <Card className="shadow-sm border-0 shadow-foreground/5">
@@ -88,24 +108,49 @@ export default function RegistrationsPage() {
             <div className="flex flex-wrap gap-3">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Search by Student ID or Name..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+                <Input placeholder="Tìm kiếm theo MSSV hoặc Họ tên..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
               </div>
+              <Input
+                type="date"
+                value={filterDate}
+                onChange={e => setFilterDate(e.target.value)}
+                className="w-40"
+              />
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectTrigger className="w-40"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="assigned">Assigned</SelectItem>
-                  <SelectItem value="supporting">Supporting</SelectItem>
-                  <SelectItem value="done">Done</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="pending">Chờ xử lý</SelectItem>
+                  <SelectItem value="supporting">Đang hỗ trợ</SelectItem>
+                  <SelectItem value="done">Hoàn thành</SelectItem>
+                  <SelectItem value="failed">Thất bại</SelectItem>
+                  <SelectItem value="cancelled">Đã hủy</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={filterSubject} onValueChange={setFilterSubject}>
-                <SelectTrigger className="w-36"><SelectValue placeholder="Subject" /></SelectTrigger>
+                <SelectTrigger className="w-36"><SelectValue placeholder="Môn học" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Subjects</SelectItem>
+                  <SelectItem value="all">Tất cả môn học</SelectItem>
                   {subjects.map((s: string) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filterCampus} onValueChange={setFilterCampus}>
+                <SelectTrigger className="w-32"><SelectValue placeholder="Cơ sở" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả cơ sở</SelectItem>
+                  <SelectItem value="HCM">HCM</SelectItem>
+                  <SelectItem value="HL">HL</SelectItem>
+                  <SelectItem value="CT">CT</SelectItem>
+                  <SelectItem value="QN">QN</SelectItem>
+                  <SelectItem value="DN">DN</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterExamType} onValueChange={setFilterExamType}>
+                <SelectTrigger className="w-32"><SelectValue placeholder="Loại thi" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả loại thi</SelectItem>
+                  <SelectItem value="PE">PE</SelectItem>
+                  <SelectItem value="FE">FE</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -121,34 +166,51 @@ export default function RegistrationsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead>Date</TableHead>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Student ID</TableHead>
-                      <TableHead>Customer Name</TableHead>
-                      <TableHead>Subject</TableHead>
+                      <TableHead>Ngày thi</TableHead>
+                      <TableHead>Giờ thi</TableHead>
+                      <TableHead>MSSV</TableHead>
+                      <TableHead>Họ và Tên</TableHead>
+                      <TableHead>Cơ sở</TableHead>
+                      <TableHead>Môn học</TableHead>
+                      <TableHead>Loại thi</TableHead>
                       <TableHead>Tool</TableHead>
-                      <TableHead>Key Code</TableHead>
-                      <TableHead>Key Type</TableHead>
-                      <TableHead>Seller</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Note</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>Mã Key</TableHead>
+                      <TableHead>Loại Key</TableHead>
+                      <TableHead>Giá hỗ trợ</TableHead>
+                      <TableHead>Trạng thái</TableHead>
+                      <TableHead>Ghi chú</TableHead>
+                      <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paged.map(r => {
                       const session = getSession(r.examSessionId);
+                      const isPE = session?.type === 'PE';
                       return (
                         <TableRow key={r._id} className="hover:bg-muted/30">
-                          <TableCell className="text-sm">{session?.date ?? '\u2014'}</TableCell>
-                          <TableCell className="text-sm whitespace-nowrap">{session ? `${session.startTime} - ${session.endTime}` : '\u2014'}</TableCell>
+                          <TableCell className="text-sm">{formatDate(session?.date)}</TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">{session ? session.startTime : '\u2014'}</TableCell>
                           <TableCell className="font-medium text-sm">{r.studentId}</TableCell>
                           <TableCell className="text-sm">{r.customerName}</TableCell>
+                          <TableCell className="text-sm font-semibold">{r.campus ?? '\u2014'}</TableCell>
                           <TableCell className="text-sm">{r.subjectId}</TableCell>
+                          <TableCell className="text-sm">
+                            {session ? (
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold border ${
+                                isPE 
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                                  : 'bg-purple-50 text-purple-700 border-purple-200'
+                              }`}>
+                                {session.type}
+                              </span>
+                            ) : '\u2014'}
+                          </TableCell>
                           <TableCell className="text-sm">{getTool(r.toolId)}</TableCell>
                           <TableCell className="text-sm font-mono">{r.keyCode ?? '\u2014'}</TableCell>
-                          <TableCell className="text-sm">{r.keyType ?? '\u2014'}</TableCell>
-                          <TableCell className="text-sm">{getSeller(r.sellerId)}</TableCell>
+                          <TableCell className="text-sm">{r.keyType === 'by_day' ? 'Theo ngày' : r.keyType === 'by_term' ? 'Theo kỳ' : '\u2014'}</TableCell>
+                          <TableCell className="text-sm font-semibold text-emerald-600 whitespace-nowrap">
+                            {r.supportPrice ? formatVND(r.supportPrice) : '\u2014'}
+                          </TableCell>
                           <TableCell><StatusBadge status={r.processStatus as any} /></TableCell>
                           <TableCell className="text-sm text-muted-foreground max-w-[120px] truncate">{r.note || '\u2014'}</TableCell>
                           <TableCell className="text-right">
@@ -166,7 +228,7 @@ export default function RegistrationsPage() {
               </div>
               <div className="flex items-center justify-between p-4 border-t">
                 <p className="text-sm text-muted-foreground">
-                  Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+                  Hiển thị {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} trên tổng số {filtered.length}
                 </p>
                 <div className="flex gap-1">
                   <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}>

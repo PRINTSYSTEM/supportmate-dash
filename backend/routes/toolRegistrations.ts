@@ -3,6 +3,9 @@ import ToolRegistration from '../models/ToolRegistration.js';
 import PricingConfig from '../models/PricingConfig.js';
 import ToolType from '../models/ToolType.js';
 import Subject from '../models/Subject.js';
+import Registration from '../models/Registration.js';
+import ExamSession from '../models/ExamSession.js';
+import Seller from '../models/Seller.js';
 import { AuthRequest, requireAuth } from '../middleware/auth.js';
 import { calculatePrice } from '../utils/pricing.js';
 import { validateToolRegistration } from '../utils/validation.js';
@@ -18,9 +21,11 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 
     const { studentId, customerName, toolPackage, toolTypeId, dates, note } = req.body;
 
-    const toolType = await ToolType.findById(toolTypeId).lean();
-    if (!toolType || !toolType.isActive) {
-      return res.status(400).json({ message: 'Tool type not found or inactive' });
+    if (toolTypeId) {
+      const toolType = await ToolType.findById(toolTypeId).lean();
+      if (!toolType || !toolType.isActive) {
+        return res.status(400).json({ message: 'Tool type not found or inactive' });
+      }
     }
 
     const subjectIds = [...new Set(dates.flatMap((d: any) => d.subjects.map((s: any) => s.subjectId)))];
@@ -37,7 +42,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     }
 
     const { toolPrice, feSlotCount, peSlotCount, totalPrice } = calculatePrice(
-      pricing,
+      pricing as any,
       toolPackage,
       dates
     );
@@ -46,7 +51,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       studentId: studentId.trim(),
       customerName: customerName.trim(),
       toolPackage,
-      toolTypeId,
+      toolTypeId: toolTypeId || null,
       keyCode: null,
       processStatus: 'pending',
       dates,
@@ -61,7 +66,79 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       },
       totalPrice,
       note: note || '',
+      campus: req.body.campus || 'HCM',
     });
+
+    // Find or create default seller
+    const defaultSeller = await Seller.findOne().lean();
+    let sellerId = '';
+    if (!defaultSeller) {
+      const newSeller = await Seller.create({ name: 'Default Seller' });
+      sellerId = newSeller._id.toString();
+    } else {
+      sellerId = defaultSeller._id.toString();
+    }
+
+    // Split and create individual Registration items
+    for (const dateItem of dates) {
+      for (const subjectItem of dateItem.subjects) {
+        for (const et of subjectItem.examTypes) {
+          const sessionType = (et.type === 'FE' || et.type === 'RETAKE_FE') ? 'FE' : 'PE';
+
+          // Try to find matching ExamSession
+          let session = await ExamSession.findOne({
+            date: dateItem.date,
+            subjectId: subjectItem.subjectId,
+            type: sessionType,
+            startTime: et.time,
+            campus: registration.campus
+          });
+
+          // Create ExamSession if it doesn't exist
+          if (!session) {
+            let endTime = '10:00';
+            if (et.time) {
+              const [h, m] = et.time.split(':');
+              const endH = (parseInt(h, 10) + 2).toString().padStart(2, '0');
+              endTime = `${endH}:${m || '00'}`;
+            }
+            session = await ExamSession.create({
+              date: dateItem.date,
+              startTime: et.time,
+              endTime,
+              type: sessionType,
+              subjectId: subjectItem.subjectId,
+              term: 'Spring26',
+              campus: registration.campus,
+              studentCount: 1
+            });
+          } else {
+            session.studentCount += 1;
+            await session.save();
+          }
+
+          // FE slots get default supportPrice (fallback to 200000), PE slots get null
+          const defaultSupportPrice = sessionType === 'FE' ? (pricing.feSlotPrice || 200000) : null;
+
+          // Create the flat Registration record
+          await Registration.create({
+            studentId: studentId.trim(),
+            customerName: customerName.trim(),
+            subjectId: subjectItem.subjectId,
+            examSessionId: session._id.toString(),
+            toolId: null,
+            keyCode: null,
+            keyType: toolPackage === 'day' ? 'by_day' : 'by_term',
+            sellerId,
+            processStatus: 'pending',
+            note: note || '',
+            campus: registration.campus,
+            toolRegistrationId: registration._id.toString(),
+            supportPrice: defaultSupportPrice,
+          });
+        }
+      }
+    }
 
     res.status(201).json(registration);
   } catch (err) {
@@ -139,6 +216,20 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
       { new: true, runValidators: true }
     );
     if (!updated) return res.status(404).json({ message: 'Not found' });
+
+    // Sync to flat registrations
+    const syncFields: any = {};
+    if (keyCode !== undefined) syncFields.keyCode = keyCode;
+    if (processStatus !== undefined) syncFields.processStatus = processStatus;
+    if (note !== undefined) syncFields.note = note;
+
+    if (Object.keys(syncFields).length > 0) {
+      await Registration.updateMany(
+        { toolRegistrationId: req.params.id },
+        { $set: syncFields }
+      );
+    }
+
     res.json(updated);
   } catch (err) {
     console.error('PUT /tool-registrations error:', err);
@@ -150,6 +241,10 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const deleted = await ToolRegistration.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ message: 'Not found' });
+
+    // Also delete associated flat registrations
+    await Registration.deleteMany({ toolRegistrationId: req.params.id });
+
     res.json({ message: 'Deleted' });
   } catch (err) {
     console.error('DELETE /tool-registrations error:', err);

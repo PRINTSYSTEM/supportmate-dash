@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -46,7 +46,54 @@ export default function ToolRegistrationsPage() {
     queryFn: () => api.get('/tool-registrations').then(r => r.data),
   });
 
+  const { data: allRegsData } = useQuery({
+    queryKey: ['all-registrations-raw'],
+    queryFn: () => api.get('/registrations', { params: { limit: 1000 } }).then(r => r.data),
+  });
+  const allRegs = allRegsData?.items ?? [];
+
+  const { data: sessionsData = [] } = useQuery({
+    queryKey: ['sessions'],
+    queryFn: () => api.get('/sessions').then(r => r.data),
+  });
+
   const regs: ToolRegistration[] = regsData?.items ?? [];
+
+  const getToolRegStats = (trId: string) => {
+    const siblingRegs = allRegs.filter((reg: any) => reg.toolRegistrationId === trId);
+    const numSubjects = new Set(siblingRegs.map((reg: any) => reg.subjectId)).size;
+    
+    let feSuccessCount = 0;
+    let peSuccessCount = 0;
+    let totalSupportPrice = 0;
+    
+    siblingRegs.forEach((reg: any) => {
+      if (reg.processStatus === 'done') {
+        const session = sessionsData.find((s: any) => s._id === reg.examSessionId);
+        const isFE = session ? session.type === 'FE' : false;
+        if (isFE) {
+          feSuccessCount++;
+        } else {
+          peSuccessCount++;
+        }
+        totalSupportPrice += reg.supportPrice || 0;
+      }
+    });
+
+    return {
+      numSubjects,
+      feSuccessCount,
+      peSuccessCount,
+      totalSupportPrice,
+    };
+  };
+
+  const billingMetrics = useMemo(() => {
+    const total = regs.reduce((s, r) => s + r.totalPrice, 0);
+    const byStatus: Record<string, number> = { pending: 0, assigned: 0, supporting: 0, done: 0, failed: 0, cancelled: 0 };
+    regs.forEach(r => { byStatus[r.processStatus] = (byStatus[r.processStatus] || 0) + 1; });
+    return { totalRevenue: total, byStatus, totalRegistrations: regs.length };
+  }, [regs]);
 
   const filtered = useMemo(() => {
     return regs.filter(r => {
@@ -98,8 +145,35 @@ export default function ToolRegistrationsPage() {
     <DashboardLayout>
       <div className="space-y-5">
         <div>
-          <h1 className="text-2xl font-bold">Tool Registrations</h1>
+          <h1 className="text-2xl font-bold">Đăng ký Tool</h1>
           <p className="text-sm text-muted-foreground">Quản lý đăng ký tool hỗ trợ thi</p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="shadow-sm border-0 shadow-foreground/5">
+            <CardContent className="p-4">
+              <p className="text-sm text-muted-foreground">Tổng doanh thu</p>
+              <p className="text-2xl font-bold mt-1">{formatVND(billingMetrics.totalRevenue)}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm border-0 shadow-foreground/5">
+            <CardContent className="p-4">
+              <p className="text-sm text-muted-foreground">Tổng số đăng ký</p>
+              <p className="text-2xl font-bold mt-1">{billingMetrics.totalRegistrations}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm border-0 shadow-foreground/5">
+            <CardContent className="p-4">
+              <p className="text-sm text-muted-foreground">Chờ xử lý</p>
+              <p className="text-2xl font-bold mt-1 text-[hsl(25,95%,53%)]">{billingMetrics.byStatus.pending}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm border-0 shadow-foreground/5">
+            <CardContent className="p-4">
+              <p className="text-sm text-muted-foreground">Hoàn thành</p>
+              <p className="text-2xl font-bold mt-1 text-[hsl(142,71%,45%)]">{billingMetrics.byStatus.done}</p>
+            </CardContent>
+          </Card>
         </div>
 
         <Card className="shadow-sm border-0 shadow-foreground/5">
@@ -107,22 +181,23 @@ export default function ToolRegistrationsPage() {
             <div className="flex flex-wrap gap-3">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Search by MSSV or Name..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+                <Input placeholder="Tìm kiếm theo MSSV hoặc Họ tên..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
               </div>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectTrigger className="w-36"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="assigned">Assigned</SelectItem>
-                  <SelectItem value="done">Done</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="pending">Chờ xử lý</SelectItem>
+                  <SelectItem value="supporting">Đang hỗ trợ</SelectItem>
+                  <SelectItem value="done">Hoàn thành</SelectItem>
+                  <SelectItem value="failed">Thất bại</SelectItem>
+                  <SelectItem value="cancelled">Đã hủy</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={filterPackage} onValueChange={setFilterPackage}>
-                <SelectTrigger className="w-36"><SelectValue placeholder="Package" /></SelectTrigger>
+                <SelectTrigger className="w-36"><SelectValue placeholder="Gói" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Packages</SelectItem>
+                  <SelectItem value="all">Tất cả các gói</SelectItem>
                   <SelectItem value="day">Ngày</SelectItem>
                   <SelectItem value="term">Kỳ</SelectItem>
                 </SelectContent>
@@ -140,15 +215,16 @@ export default function ToolRegistrationsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead>Date</TableHead>
+                      <TableHead>Ngày đăng ký</TableHead>
                       <TableHead>MSSV</TableHead>
                       <TableHead>Họ tên</TableHead>
+                      <TableHead>Cơ sở</TableHead>
                       <TableHead>Tool</TableHead>
                       <TableHead>Gói</TableHead>
-                      <TableHead>Keycode</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>Mã Key</TableHead>
+                      <TableHead>Tổng tiền</TableHead>
+                      <TableHead>Trạng thái</TableHead>
+                      <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -157,10 +233,18 @@ export default function ToolRegistrationsPage() {
                         <TableCell className="text-sm whitespace-nowrap">{new Date(r.createdAt).toLocaleDateString('vi-VN')}</TableCell>
                         <TableCell className="font-medium text-sm">{r.studentId}</TableCell>
                         <TableCell className="text-sm">{r.customerName}</TableCell>
+                        <TableCell className="text-sm font-semibold">{r.campus ?? '\u2014'}</TableCell>
                         <TableCell className="text-sm">{getToolTypeName(r.toolTypeId)}</TableCell>
                         <TableCell className="text-sm">{getToolPackageLabel(r.toolPackage)}</TableCell>
                         <TableCell className="text-sm font-mono">{r.keyCode || '—'}</TableCell>
-                        <TableCell className="text-sm font-medium">{formatVND(r.totalPrice)}</TableCell>
+                        <TableCell className="text-sm">
+                          <div className="font-semibold text-foreground">{formatVND(r.totalPrice)}</div>
+                          {getToolRegStats(r._id).totalSupportPrice > 0 && (
+                            <div className="text-[10px] text-emerald-600 font-semibold mt-0.5 whitespace-nowrap bg-emerald-50 border border-emerald-200 rounded px-1 py-0.5 inline-block">
+                              + SP: {formatVND(getToolRegStats(r._id).totalSupportPrice)}
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell><StatusBadge status={r.processStatus as any} /></TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openModal(r)}>
@@ -174,7 +258,7 @@ export default function ToolRegistrationsPage() {
               </div>
               <div className="flex items-center justify-between p-4 border-t">
                 <p className="text-sm text-muted-foreground">
-                  Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+                  Hiển thị {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} trên tổng số {filtered.length}
                 </p>
                 <div className="flex gap-1">
                   <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
@@ -220,13 +304,31 @@ export default function ToolRegistrationsPage() {
                 </div>
               </div>
 
-              <div className="border-t pt-3 text-sm">
-                <Label className="text-muted-foreground">Breakdown giá</Label>
-                <p>Tool: {formatVND(modalReg.priceSnapshot.toolPrice)}</p>
-                {modalReg.priceSnapshot.feSlotCount > 0 && <p>FE slots x{modalReg.priceSnapshot.feSlotCount}: {formatVND(modalReg.priceSnapshot.feSlotCount * modalReg.priceSnapshot.feSlotPrice)}</p>}
-                {modalReg.priceSnapshot.peSlotCount > 0 && <p>PE slots x{modalReg.priceSnapshot.peSlotCount}: {formatVND(modalReg.priceSnapshot.peSlotCount * modalReg.priceSnapshot.peSlotPrice)}</p>}
-                {modalReg.priceSnapshot.discountEnabled && <p>Discount: -{formatVND(modalReg.priceSnapshot.discountAmount)}</p>}
-                <p className="font-bold">Total: {formatVND(modalReg.totalPrice)}</p>
+               <div className="border-t pt-3 text-sm space-y-1">
+                <Label className="text-muted-foreground font-semibold">Breakdown giá</Label>
+                <div className="flex justify-between"><span>Tiền Tool đăng ký:</span><span>{formatVND(modalReg.totalPrice)}</span></div>
+                
+                {(() => {
+                  const stats = getToolRegStats(modalReg._id);
+                  return (
+                    <>
+                      <div className="bg-muted/40 rounded p-2.5 mt-2 space-y-1">
+                        <Label className="text-xs font-semibold text-primary uppercase tracking-wider">Chỉ số hỗ trợ thi</Label>
+                        <div className="flex justify-between text-xs"><span>Số môn đăng ký:</span><span>{stats.numSubjects} môn</span></div>
+                        <div className="flex justify-between text-xs"><span>Thành công PE:</span><span className="font-medium text-blue-600">{stats.peSuccessCount} lượt</span></div>
+                        <div className="flex justify-between text-xs"><span>Thành công FE:</span><span className="font-medium text-purple-600">{stats.feSuccessCount} lượt</span></div>
+                        <div className="flex justify-between text-xs font-semibold border-t pt-1 mt-1 text-emerald-600">
+                          <span>Tổng tiền support:</span>
+                          <span>{formatVND(stats.totalSupportPrice)}</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between font-bold text-base border-t pt-2 mt-2">
+                        <span>Tổng cộng thực tế:</span>
+                        <span className="text-emerald-700">{formatVND(modalReg.totalPrice + stats.totalSupportPrice)}</span>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               <div className="space-y-1.5">
@@ -242,10 +344,11 @@ export default function ToolRegistrationsPage() {
                 <Select value={editStatus} onValueChange={v => setEditStatus(v as ToolProcessStatus)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="assigned">Assigned</SelectItem>
-                    <SelectItem value="done">Done</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="pending">Chờ xử lý</SelectItem>
+                    <SelectItem value="supporting">Đang hỗ trợ</SelectItem>
+                    <SelectItem value="done">Hoàn thành</SelectItem>
+                    <SelectItem value="failed">Thất bại</SelectItem>
+                    <SelectItem value="cancelled">Đã hủy</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -254,12 +357,12 @@ export default function ToolRegistrationsPage() {
                 <Textarea value={editNote} onChange={e => setEditNote(e.target.value)} rows={2} />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setModalReg(null)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? 'Saving...' : 'Save'}
-              </Button>
-            </DialogFooter>
+             <DialogFooter>
+               <Button variant="outline" onClick={() => setModalReg(null)}>Hủy</Button>
+               <Button onClick={handleSave} disabled={updateMutation.isPending}>
+                 {updateMutation.isPending ? 'Đang lưu...' : 'Lưu'}
+               </Button>
+             </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

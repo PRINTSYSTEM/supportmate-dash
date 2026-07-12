@@ -2,11 +2,12 @@ import { ProcessStatus } from '@/data/types';
 import { cn } from '@/lib/utils';
 
 const statusLabels: Record<ProcessStatus, string> = {
-  pending: 'Pending',
-  assigned: 'Assigned',
-  supporting: 'Supporting',
-  done: 'Done',
-  cancelled: 'Cancelled',
+  pending: 'Chờ xử lý',
+  assigned: 'Đã gán',
+  supporting: 'Đang hỗ trợ',
+  done: 'Hoàn thành',
+  failed: 'Thất bại',
+  cancelled: 'Đã hủy',
 };
 
 export function StatusBadge({ status }: { status: ProcessStatus }) {
@@ -18,6 +19,7 @@ export function StatusBadge({ status }: { status: ProcessStatus }) {
         status === 'assigned' && 'status-assigned',
         status === 'supporting' && 'status-supporting',
         status === 'done' && 'status-done',
+        status === 'failed' && 'status-failed',
         status === 'cancelled' && 'status-cancelled'
       )}
     >

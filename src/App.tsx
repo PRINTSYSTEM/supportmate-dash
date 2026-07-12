@@ -19,6 +19,7 @@ import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import ToolRegistrationsPage from "./pages/ToolRegistrationsPage";
 import PricingPage from "./pages/PricingPage";
+import ToolsPage from "./pages/ToolsPage";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/import" element={<ProtectedRoute><ImportDataPage /></ProtectedRoute>} />
               <Route path="/tool-registrations" element={<ProtectedRoute><ToolRegistrationsPage /></ProtectedRoute>} />
               <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
+              <Route path="/tools" element={<ProtectedRoute><ToolsPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
