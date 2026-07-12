@@ -170,7 +170,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
     }
 
     const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
-    const limitNum = Math.min(200, Math.max(1, parseInt(limit as string, 10) || 50));
+    const limitNum = Math.min(10000, Math.max(1, parseInt(limit as string, 10) || 50));
     const skip = (pageNum - 1) * limitNum;
 
     const [items, total] = await Promise.all([
@@ -199,16 +199,19 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
 router.put('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const allowedFields: any = {};
-    const { keyCode, processStatus, note } = req.body;
+    const { keyCode, processStatus, note, amountReceived } = req.body;
 
     if (keyCode !== undefined) allowedFields.keyCode = keyCode;
     if (processStatus !== undefined) {
-      if (!['pending', 'assigned', 'done', 'cancelled'].includes(processStatus)) {
+      if (!['pending', 'assigned', 'supporting', 'done', 'failed', 'cancelled'].includes(processStatus)) {
         return res.status(400).json({ message: 'Invalid process status' });
       }
       allowedFields.processStatus = processStatus;
     }
     if (note !== undefined) allowedFields.note = note;
+    if (amountReceived !== undefined) {
+      allowedFields.amountReceived = Number(amountReceived) || 0;
+    }
 
     const updated = await ToolRegistration.findByIdAndUpdate(
       req.params.id,

@@ -138,7 +138,8 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
 
       const parentToolReg = await ToolRegistration.findById(updated.toolRegistrationId);
       if (parentToolReg) {
-        const sumOfSupportPrices = siblings.reduce((sum, s) => sum + (s.supportPrice || 0), 0);
+        const activeSiblings = siblings.filter(s => s.processStatus !== 'failed' && s.processStatus !== 'cancelled');
+        const sumOfSupportPrices = activeSiblings.reduce((sum, s) => sum + (s.supportPrice || 0), 0);
         const toolPrice = parentToolReg.priceSnapshot?.toolPrice || 0;
         const discountAmount = parentToolReg.priceSnapshot?.discountEnabled ? (parentToolReg.priceSnapshot.discountAmount || 0) : 0;
         const newTotalPrice = Math.max(toolPrice + sumOfSupportPrices - discountAmount, 0);
@@ -190,7 +191,8 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
       
       const parentToolReg = await ToolRegistration.findById(deleted.toolRegistrationId);
       if (parentToolReg) {
-        const sumOfSupportPrices = siblings.reduce((sum, s) => sum + (s.supportPrice || 0), 0);
+        const activeSiblings = siblings.filter(s => s.processStatus !== 'failed' && s.processStatus !== 'cancelled');
+        const sumOfSupportPrices = activeSiblings.reduce((sum, s) => sum + (s.supportPrice || 0), 0);
         const toolPrice = parentToolReg.priceSnapshot?.toolPrice || 0;
         const discountAmount = parentToolReg.priceSnapshot?.discountEnabled ? (parentToolReg.priceSnapshot.discountAmount || 0) : 0;
         const newTotalPrice = Math.max(toolPrice + sumOfSupportPrices - discountAmount, 0);

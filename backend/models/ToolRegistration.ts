@@ -35,6 +35,7 @@ export interface IToolRegistration extends Document {
   dates: IToolDate[];
   priceSnapshot: IPriceSnapshot;
   totalPrice: number;
+  amountReceived: number;
   note: string;
   campus: string;
   createdAt: Date;
@@ -93,6 +94,7 @@ const ToolRegistrationSchema = new Schema<IToolRegistration>(
     dates: { type: [ToolDateSchema], required: true },
     priceSnapshot: { type: PriceSnapshotSchema, required: true },
     totalPrice: { type: Number, required: true, min: 0 },
+    amountReceived: { type: Number, default: 0, min: 0 },
     note: { type: String, default: '', maxlength: 500 },
     campus: { type: String, required: true, default: 'HCM' },
   },

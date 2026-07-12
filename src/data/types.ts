@@ -95,6 +95,7 @@ export interface ToolRegistration {
   dates: ToolDate[];
   priceSnapshot: PriceSnapshot;
   totalPrice: number;
+  amountReceived: number;
   note: string;
   campus: string;
   createdAt: string;

@@ -35,6 +35,7 @@ export default function ToolRegistrationsPage() {
   const [editKeyCode, setEditKeyCode] = useState('');
   const [editStatus, setEditStatus] = useState<ToolProcessStatus>('pending');
   const [editNote, setEditNote] = useState('');
+  const [editAmountReceived, setEditAmountReceived] = useState('');
 
   const { data: toolTypes = [] } = useQuery({
     queryKey: ['tool-types-admin'],
@@ -80,7 +81,8 @@ export default function ToolRegistrationsPage() {
       }
     });
 
-    const totalAllSupportPrice = siblingRegs.reduce((sum: number, reg: any) => sum + (reg.supportPrice || 0), 0);
+    const activeSiblingRegs = siblingRegs.filter((reg: any) => reg.processStatus !== 'failed' && reg.processStatus !== 'cancelled');
+    const totalAllSupportPrice = activeSiblingRegs.reduce((sum: number, reg: any) => sum + (reg.supportPrice || 0), 0);
 
     return {
       numSubjects,
@@ -140,6 +142,7 @@ export default function ToolRegistrationsPage() {
     setEditKeyCode(r.keyCode || '');
     setEditStatus(r.processStatus);
     setEditNote(r.note);
+    setEditAmountReceived(r.amountReceived ? (r.amountReceived / 1000).toString() : '0');
   };
 
   const handleSave = () => {
@@ -150,6 +153,7 @@ export default function ToolRegistrationsPage() {
         keyCode: editKeyCode || null,
         processStatus: editStatus,
         note: editNote,
+        amountReceived: editAmountReceived ? parseFloat(editAmountReceived) * 1000 : 0,
       },
     });
   };
@@ -237,7 +241,9 @@ export default function ToolRegistrationsPage() {
                       <TableHead>Mã Key</TableHead>
                       <TableHead>Giá Tool</TableHead>
                       <TableHead>Giá Support</TableHead>
-                      <TableHead>Tổng tiền</TableHead>
+                      <TableHead>Tổng phí dịch vụ</TableHead>
+                      <TableHead>Tiền đã nhận</TableHead>
+                      <TableHead>Còn nợ</TableHead>
                       <TableHead>Trạng thái</TableHead>
                       <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
@@ -261,6 +267,12 @@ export default function ToolRegistrationsPage() {
                               Đã hoàn thành: {formatVND(getToolRegStats(r._id).totalSupportPrice)}
                             </div>
                           )}
+                        </TableCell>
+                        <TableCell className="text-sm font-semibold text-blue-600 whitespace-nowrap">
+                          {formatVND(r.amountReceived ?? 0)}
+                        </TableCell>
+                        <TableCell className="text-sm font-bold text-rose-600 whitespace-nowrap">
+                          {formatVND(Math.max(r.totalPrice - (r.amountReceived ?? 0), 0))}
                         </TableCell>
                         <TableCell><StatusBadge status={r.processStatus as any} /></TableCell>
                         <TableCell className="text-right">
@@ -338,10 +350,11 @@ export default function ToolRegistrationsPage() {
 
                <div className="border-t pt-3 text-sm space-y-1">
                 <Label className="text-muted-foreground font-semibold">Breakdown giá</Label>
-                <div className="flex justify-between"><span>Tiền Tool đăng ký:</span><span>{formatVND(modalReg.totalPrice)}</span></div>
+                <div className="flex justify-between"><span>Tiền Tool đăng ký:</span><span>{formatVND(modalReg.priceSnapshot?.toolPrice ?? 0)}</span></div>
                 
                 {(() => {
                   const stats = getToolRegStats(modalReg._id);
+                  const remainingDebt = Math.max(modalReg.totalPrice - (modalReg.amountReceived ?? 0), 0);
                   return (
                     <>
                       <div className="bg-muted/40 rounded p-2.5 mt-2 space-y-1">
@@ -350,13 +363,21 @@ export default function ToolRegistrationsPage() {
                         <div className="flex justify-between text-xs"><span>Thành công PE:</span><span className="font-medium text-blue-600">{stats.peSuccessCount} lượt</span></div>
                         <div className="flex justify-between text-xs"><span>Thành công FE:</span><span className="font-medium text-purple-600">{stats.feSuccessCount} lượt</span></div>
                         <div className="flex justify-between text-xs font-semibold border-t pt-1 mt-1 text-emerald-600">
-                          <span>Tổng tiền support:</span>
-                          <span>{formatVND(stats.totalSupportPrice)}</span>
+                          <span>Tổng tiền support (không tính hủy/thất bại):</span>
+                          <span>{formatVND(stats.totalAllSupportPrice)}</span>
                         </div>
                       </div>
                       <div className="flex justify-between font-bold text-base border-t pt-2 mt-2">
-                        <span>Tổng cộng thực tế:</span>
-                        <span className="text-emerald-700">{formatVND(modalReg.totalPrice + stats.totalSupportPrice)}</span>
+                        <span>Tổng phí dịch vụ:</span>
+                        <span className="text-emerald-700">{formatVND(modalReg.totalPrice)}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold text-sm text-blue-600">
+                        <span>Tiền đã nhận:</span>
+                        <span>{formatVND(modalReg.amountReceived ?? 0)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-sm text-rose-600">
+                        <span>Còn nợ:</span>
+                        <span>{formatVND(remainingDebt)}</span>
                       </div>
                     </>
                   );
@@ -369,6 +390,16 @@ export default function ToolRegistrationsPage() {
                   value={editKeyCode}
                   onChange={e => setEditKeyCode(e.target.value)}
                   placeholder="Nhập keycode"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Tiền đã nhận (kđ)</Label>
+                <Input
+                  type="number"
+                  value={editAmountReceived}
+                  onChange={e => setEditAmountReceived(e.target.value)}
+                  placeholder="Nhập tiền đã nhận (ví dụ: 2000 tương đương 2.000.000đ)"
+                  min={0}
                 />
               </div>
               <div className="space-y-1.5">
