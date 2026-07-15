@@ -45,7 +45,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'Missing required fields' });
     }
     const registration = await Registration.create({
-      studentId: studentId.trim(),
+      studentId: studentId.trim().toUpperCase(),
       customerName: customerName.trim(),
       subjectId,
       examSessionId,

@@ -265,7 +265,7 @@ export default function GuestRegisterPage() {
     try {
       const payload = {
         customerName: form.customerName.trim(),
-        studentId: form.studentId.trim(),
+        studentId: form.studentId.trim().toUpperCase(),
         toolTypeId: form.toolTypeId,
         toolPackage: form.toolPackage,
         dates: form.dates,

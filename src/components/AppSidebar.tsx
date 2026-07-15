@@ -14,6 +14,7 @@ import {
   Lock,
   User,
   DollarSign,
+  Wallet,
   Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ const navItems = [
   { title: 'Bảng điều khiển', path: '/dashboard', icon: LayoutDashboard },
   { title: 'Hỗ trợ thi', path: '/registrations', icon: ClipboardList },
   { title: 'Đăng ký Tool', path: '/tool-registrations', icon: ClipboardList },
+  { title: 'Quản lý tiền', path: '/money-management', icon: Wallet },
   { title: 'Quản lý Tool', path: '/tools', icon: Wrench },
   { title: 'Ca thi', path: '/sessions', icon: Calendar },
   { title: 'Môn học', path: '/subjects', icon: BookOpen },

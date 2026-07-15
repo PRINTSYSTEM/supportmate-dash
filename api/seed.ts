@@ -24,20 +24,6 @@ async function seed() {
   }
 
   console.log('Seeding...');
-  // Clear existing data
-  await Promise.all([
-    (Admin as any).deleteMany({}),
-    (Subject as any).deleteMany({}),
-    (Term as any).deleteMany({}),
-    (Tool as any).deleteMany({}),
-    (Seller as any).deleteMany({}),
-    (Key as any).deleteMany({}),
-    (ExamSession as any).deleteMany({}),
-    (Registration as any).deleteMany({}),
-    (ToolType as any).deleteMany({}),
-    (PricingConfig as any).deleteMany({}),
-    (ToolRegistration as any).deleteMany({}),
-  ]);
 
   // Subjects
   await (Subject as any).insertMany([
@@ -73,10 +59,10 @@ async function seed() {
   await (PricingConfig as any).create({
     toolDayPrice: 800000,
     toolTermPrice: 1800000,
-    feSlotPrice: 200000,
+    feSlotPrice: 0,
     peSlotPrice: 0,
-    discountEnabled: true,
-    discountAmount: 200000,
+    discountEnabled: false,
+    discountAmount: 0,
     activeToolTypeId: binhNgo._id.toString(),
   });
 

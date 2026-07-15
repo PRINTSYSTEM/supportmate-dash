@@ -120,3 +120,40 @@ export interface PricingConfig {
   activeToolTypeId: string | null;
   updatedBy: string | null;
 }
+
+// Money Management types
+export interface MoneySummaryItem {
+  studentId: string;
+  customerName: string;
+  campus: string;
+  registrationCount: number;
+  toolFee: number;
+  supportFee: number;
+  discount: number;
+  totalServiceFee: number;
+  amountReceived: number;
+  debt: number;
+  registrations: MoneyRegistrationItem[];
+}
+
+export interface MoneyRegistrationItem {
+  _id: string;
+  createdAt: string;
+  toolPackage: ToolPackage;
+  toolTypeId: string;
+  keyCode: string | null;
+  processStatus: ToolProcessStatus;
+  totalPrice: number;
+  amountReceived: number;
+  priceSnapshot: PriceSnapshot;
+  dates: ToolDate[];
+  note: string;
+  childCount: number;
+}
+
+export interface MergeResult {
+  normalized: number;
+  mergedRecords: number;
+  duplicateGroups: number;
+  details: string[];
+}

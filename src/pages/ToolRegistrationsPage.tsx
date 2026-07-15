@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Search, Pencil, ChevronLeft, ChevronRight, Loader2, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Search, Pencil, ChevronLeft, ChevronRight, Loader2, Trash2, Wallet } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -161,9 +162,14 @@ export default function ToolRegistrationsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <div>
-          <h1 className="text-2xl font-bold">Đăng ký Tool</h1>
-          <p className="text-sm text-muted-foreground">Quản lý đăng ký tool hỗ trợ thi</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Đăng ký Tool</h1>
+            <p className="text-sm text-muted-foreground">Quản lý đăng ký tool hỗ trợ thi</p>
+          </div>
+          <Button variant="outline" asChild>
+            <Link to="/money-management"><Wallet className="w-4 h-4 mr-2" />Quản lý tiền</Link>
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
