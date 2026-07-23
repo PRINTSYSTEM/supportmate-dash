@@ -101,16 +101,16 @@ export default function SubjectsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Subjects</h1>
             <p className="text-sm text-muted-foreground">Manage exam subjects for registration</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowImport(true)}>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={() => setShowImport(true)} className="flex-1 sm:flex-none">
               <Upload className="w-4 h-4 mr-2" />Import Excel
             </Button>
-            <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" />Add Subject</Button>
+            <Button onClick={openNew} className="flex-1 sm:flex-none"><Plus className="w-4 h-4 mr-2" />Add Subject</Button>
           </div>
           </div>
         <Card className="shadow-sm border-0 shadow-foreground/5 overflow-hidden">

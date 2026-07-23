@@ -1,4 +1,4 @@
-import { useState, useMemo, Fragment } from 'react';
+import { useState, useMemo, Fragment, useRef } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,10 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Search, ChevronLeft, ChevronRight, Loader2, Users, RefreshCw, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Loader2, Users, RefreshCw, ChevronDown, ChevronUp, Pencil, Filter, FileText, Download, Copy, Link } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import html2canvas from 'html2canvas';
+import { QuoteView } from '@/components/QuoteView';
+import type { QuoteData } from '@/components/QuoteView';
 import type { MoneySummaryItem, ToolProcessStatus } from '@/data/types';
 
 const PAGE_SIZE = 10;
@@ -28,6 +31,7 @@ export default function MoneyManagementPage() {
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [merging, setMerging] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const [editStudent, setEditStudent] = useState<MoneySummaryItem | null>(null);
   const [editDiscount, setEditDiscount] = useState('');
@@ -39,6 +43,105 @@ export default function MoneyManagementPage() {
   const [editRegStatus, setEditRegStatus] = useState<ToolProcessStatus>('pending');
   const [editRegNote, setEditRegNote] = useState('');
   const [editRegAmount, setEditRegAmount] = useState('');
+
+  const [quoteStudent, setQuoteStudent] = useState<MoneySummaryItem | null>(null);
+  const quoteRef = useRef<HTMLDivElement>(null);
+
+  const buildQuoteData = (item: MoneySummaryItem): QuoteData => {
+    const nameParts = (item.customerName || '').trim().split(/\s+/);
+    const maskedName = nameParts.length > 2
+      ? `${nameParts[0]} *** ${nameParts[nameParts.length - 1]}`
+      : item.customerName;
+    const maskedId = (item.studentId || '').length > 5
+      ? item.studentId.substring(0, 2) + '***' + item.studentId.substring(item.studentId.length - 3)
+      : item.studentId;
+
+    const toolPackage = item.registrations[0]?.toolPackage || 'day';
+    const toolTypeName = getToolTypeName(item.registrations[0]?.toolTypeId || '');
+
+    const allDates = item.registrations.flatMap(r => r.dates || []);
+
+    return {
+      customerName: maskedName,
+      studentId: maskedId,
+      campus: item.campus,
+      toolPackage,
+      toolTypeName,
+      dates: allDates,
+      toolFee: item.toolFee,
+      supportFee: item.supportFee,
+      discount: item.discount,
+      amountReceived: item.amountReceived,
+      totalPrice: item.debt,
+    };
+  };
+
+  const getQuoteCanvas = () =>
+    html2canvas(quoteRef.current!, { scale: 2, useCORS: true });
+
+  const getBlob = (canvas: HTMLCanvasElement) =>
+    new Promise<Blob>(resolve => canvas.toBlob(b => resolve(b!)));
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSaveImage = async () => {
+    if (!quoteRef.current) return;
+    try {
+      const canvas = await getQuoteCanvas();
+      const blob = await getBlob(canvas);
+      const file = new File([blob], `baogia-${quoteStudent?.studentId || ''}.png`, { type: 'image/png' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Báo giá dịch vụ' });
+      } else {
+        downloadBlob(blob, file.name);
+      }
+      toast.success('Đã lưu ảnh báo giá');
+    } catch {
+      toast.error('Không thể lưu ảnh');
+    }
+  };
+
+  const handleCopyImage = async () => {
+    if (!quoteRef.current) return;
+    try {
+      const canvas = await getQuoteCanvas();
+      const blob = await getBlob(canvas);
+
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        toast.success('Đã copy ảnh báo giá');
+      } catch {
+        const file = new File([blob], 'baogia.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'Báo giá dịch vụ' });
+          toast.success('Đã lưu ảnh báo giá');
+        } else {
+          downloadBlob(blob, `baogia-${quoteStudent?.studentId || ''}.png`);
+          toast.success('Đã tải ảnh báo giá');
+        }
+      }
+    } catch {
+      toast.error('Không thể thao tác với ảnh');
+    }
+  };
+
+  const handleCopyLink = () => {
+    const link = `${window.location.origin}/quote/${itemIdMap[quoteStudent?.studentId || ''] || ''}`;
+    if (link.includes('undefined')) {
+      toast.error('Không tìm thấy mã đăng ký');
+      return;
+    }
+    navigator.clipboard.writeText(link);
+    toast.success('Đã copy link báo giá');
+  };
 
   const { data: summary, isLoading } = useQuery({
     queryKey: ['money-summary'],
@@ -52,6 +155,18 @@ export default function MoneyManagementPage() {
   });
 
   const items: MoneySummaryItem[] = summary ?? [];
+
+  // Build a map of studentId -> toolRegistrationId for quote links
+  const itemIdMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const item of items) {
+      const firstReg = item.registrations?.[0];
+      if (firstReg) {
+        map[item.studentId] = firstReg._id;
+      }
+    }
+    return map;
+  }, [items]);
 
   const billingMetrics = useMemo(() => {
     const totalToolFee = items.reduce((s, i) => s + i.toolFee, 0);
@@ -162,12 +277,12 @@ export default function MoneyManagementPage() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Quản lý tiền</h1>
             <p className="text-sm text-muted-foreground">Gộp và quản lý tài chính theo MSSV</p>
           </div>
-          <Button variant="outline" onClick={handleMerge} disabled={merging}>
+          <Button variant="outline" onClick={handleMerge} disabled={merging} className="w-full sm:w-auto">
             {merging ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
             {merging ? 'Đang gộp...' : 'Gộp MSSV trùng'}
           </Button>
@@ -209,21 +324,31 @@ export default function MoneyManagementPage() {
         <Card className="shadow-sm border-0 shadow-foreground/5">
           <CardContent className="p-4">
             <div className="flex flex-wrap gap-3">
-              <div className="relative flex-1 min-w-[200px]">
+              <div className="relative flex-1 min-w-[160px] sm:min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input placeholder="Tìm kiếm theo MSSV hoặc Họ tên..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
               </div>
-              <Select value={filterPackage} onValueChange={setFilterPackage}>
-                <SelectTrigger className="w-36"><SelectValue placeholder="Gói" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả gói</SelectItem>
-                  <SelectItem value="day">Ngày</SelectItem>
-                  <SelectItem value="term">Kỳ</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ['money-summary'] })}>
-                <RefreshCw className="w-4 h-4 mr-2" />Làm mới
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 md:hidden"
+                onClick={() => setShowFilters(v => !v)}
+              >
+                <Filter className="w-4 h-4" />
               </Button>
+              <div className={`flex-wrap gap-3 ${showFilters ? 'flex' : 'hidden'} md:flex`}>
+                <Select value={filterPackage} onValueChange={setFilterPackage}>
+                  <SelectTrigger className="w-36"><SelectValue placeholder="Gói" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả gói</SelectItem>
+                    <SelectItem value="day">Ngày</SelectItem>
+                    <SelectItem value="term">Kỳ</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ['money-summary'] })}>
+                  <RefreshCw className="w-4 h-4 mr-2" />Làm mới
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -240,13 +365,13 @@ export default function MoneyManagementPage() {
                       <TableHead className="w-6"></TableHead>
                       <TableHead>MSSV</TableHead>
                       <TableHead>Họ tên</TableHead>
-                      <TableHead>CS</TableHead>
+                      <TableHead className="hidden md:table-cell">CS</TableHead>
                       <TableHead className="text-center">SL</TableHead>
-                      <TableHead>Giá Tool</TableHead>
-                      <TableHead>Giá Support</TableHead>
-                      <TableHead>Giảm giá</TableHead>
-                      <TableHead>Tổng phí DV</TableHead>
-                      <TableHead>Tiền nhận</TableHead>
+                      <TableHead className="hidden md:table-cell">Giá Tool</TableHead>
+                      <TableHead className="hidden md:table-cell">Giá Support</TableHead>
+                      <TableHead className="hidden md:table-cell">Giảm giá</TableHead>
+                      <TableHead className="hidden md:table-cell">Tổng phí DV</TableHead>
+                      <TableHead className="hidden md:table-cell">Tiền nhận</TableHead>
                       <TableHead>Còn nợ</TableHead>
                       <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
@@ -261,19 +386,24 @@ export default function MoneyManagementPage() {
                               {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                             </TableCell>
                             <TableCell className="font-bold text-sm">{item.studentId}</TableCell>
-                            <TableCell className="text-sm">{item.customerName}</TableCell>
-                            <TableCell className="text-sm">{item.campus}</TableCell>
+                            <TableCell className="text-sm truncate max-w-[120px] md:max-w-none">{item.customerName}</TableCell>
+                            <TableCell className="hidden md:table-cell text-sm">{item.campus}</TableCell>
                             <TableCell className="text-sm text-center">{item.registrationCount}</TableCell>
-                            <TableCell className="text-sm font-semibold whitespace-nowrap">{formatVND(item.toolFee)}</TableCell>
-                            <TableCell className="text-sm font-semibold text-emerald-600 whitespace-nowrap">{formatVND(item.supportFee)}</TableCell>
-                            <TableCell className="text-sm font-semibold text-orange-600 whitespace-nowrap">{formatVND(item.discount)}</TableCell>
-                            <TableCell className="text-sm font-bold whitespace-nowrap">{formatVND(item.totalServiceFee)}</TableCell>
-                            <TableCell className="text-sm font-semibold text-blue-600 whitespace-nowrap">{formatVND(item.amountReceived)}</TableCell>
+                            <TableCell className="hidden md:table-cell text-sm font-semibold whitespace-nowrap">{formatVND(item.toolFee)}</TableCell>
+                            <TableCell className="hidden md:table-cell text-sm font-semibold text-emerald-600 whitespace-nowrap">{formatVND(item.supportFee)}</TableCell>
+                            <TableCell className="hidden md:table-cell text-sm font-semibold text-orange-600 whitespace-nowrap">{formatVND(item.discount)}</TableCell>
+                            <TableCell className="hidden md:table-cell text-sm font-bold whitespace-nowrap">{formatVND(item.totalServiceFee)}</TableCell>
+                            <TableCell className="hidden md:table-cell text-sm font-semibold text-blue-600 whitespace-nowrap">{formatVND(item.amountReceived)}</TableCell>
                             <TableCell className="text-sm font-bold text-rose-600 whitespace-nowrap">{formatVND(item.debt)}</TableCell>
                             <TableCell className="text-right">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); openEditStudent(item); }}>
-                                <Pencil className="w-4 h-4" />
-                              </Button>
+                              <div className="flex gap-1 justify-end">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); setQuoteStudent(item); }}>
+                                  <FileText className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); openEditStudent(item); }}>
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                           {isExpanded && (
@@ -286,14 +416,14 @@ export default function MoneyManagementPage() {
                                       <TableRow className="bg-muted/30">
                                         <TableHead className="text-xs">Ngày ĐK</TableHead>
                                         <TableHead className="text-xs">Gói</TableHead>
-                                        <TableHead className="text-xs">Tool</TableHead>
-                                        <TableHead className="text-xs">Giá Tool</TableHead>
-                                        <TableHead className="text-xs">Support</TableHead>
-                                        <TableHead className="text-xs">Giảm</TableHead>
+                                        <TableHead className="hidden sm:table-cell text-xs">Tool</TableHead>
+                                        <TableHead className="hidden sm:table-cell text-xs">Giá Tool</TableHead>
+                                        <TableHead className="hidden sm:table-cell text-xs">Support</TableHead>
+                                        <TableHead className="hidden sm:table-cell text-xs">Giảm</TableHead>
                                         <TableHead className="text-xs">Tổng</TableHead>
-                                        <TableHead className="text-xs">Đã nhận</TableHead>
+                                        <TableHead className="hidden sm:table-cell text-xs">Đã nhận</TableHead>
                                         <TableHead className="text-xs">Trạng thái</TableHead>
-                                        <TableHead className="text-xs">Key</TableHead>
+                                        <TableHead className="hidden sm:table-cell text-xs">Key</TableHead>
                                         <TableHead className="text-xs text-right">Sửa</TableHead>
                                       </TableRow>
                                     </TableHeader>
@@ -302,14 +432,14 @@ export default function MoneyManagementPage() {
                                         <TableRow key={reg._id} className="hover:bg-muted/20">
                                           <TableCell className="text-xs whitespace-nowrap">{new Date(reg.createdAt).toLocaleDateString('vi-VN')}</TableCell>
                                           <TableCell className="text-xs">{getToolPackageLabel(reg.toolPackage)}</TableCell>
-                                          <TableCell className="text-xs">{getToolTypeName(reg.toolTypeId)}</TableCell>
-                                          <TableCell className="text-xs font-semibold">{formatVND(reg.priceSnapshot?.toolPrice ?? 0)}</TableCell>
-                                          <TableCell className="text-xs text-emerald-600">{formatVND(reg.totalPrice - (reg.priceSnapshot?.toolPrice ?? 0) + (reg.priceSnapshot?.discountEnabled ? reg.priceSnapshot.discountAmount : 0))}</TableCell>
-                                          <TableCell className="text-xs text-orange-600">{reg.priceSnapshot?.discountEnabled ? formatVND(reg.priceSnapshot.discountAmount) : '\u2014'}</TableCell>
+                                          <TableCell className="hidden sm:table-cell text-xs">{getToolTypeName(reg.toolTypeId)}</TableCell>
+                                          <TableCell className="hidden sm:table-cell text-xs font-semibold">{formatVND(reg.priceSnapshot?.toolPrice ?? 0)}</TableCell>
+                                          <TableCell className="hidden sm:table-cell text-xs text-emerald-600">{formatVND(reg.totalPrice - (reg.priceSnapshot?.toolPrice ?? 0) + (reg.priceSnapshot?.discountEnabled ? reg.priceSnapshot.discountAmount : 0))}</TableCell>
+                                          <TableCell className="hidden sm:table-cell text-xs text-orange-600">{reg.priceSnapshot?.discountEnabled ? formatVND(reg.priceSnapshot.discountAmount) : '\u2014'}</TableCell>
                                           <TableCell className="text-xs font-semibold">{formatVND(reg.totalPrice)}</TableCell>
-                                          <TableCell className="text-xs text-blue-600">{formatVND(reg.amountReceived)}</TableCell>
+                                          <TableCell className="hidden sm:table-cell text-xs text-blue-600">{formatVND(reg.amountReceived)}</TableCell>
                                           <TableCell className="text-xs"><StatusBadge status={reg.processStatus as any} /></TableCell>
-                                          <TableCell className="text-xs font-mono">{reg.keyCode || '\u2014'}</TableCell>
+                                          <TableCell className="hidden sm:table-cell text-xs font-mono">{reg.keyCode || '\u2014'}</TableCell>
                                           <TableCell className="text-xs text-right">
                                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => { e.stopPropagation(); openEditReg(reg); }}>
                                               <Pencil className="w-3.5 h-3.5" />
@@ -330,14 +460,14 @@ export default function MoneyManagementPage() {
                 </Table>
               </div>
               <div className="flex items-center justify-between p-4 border-t">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground hidden sm:block">
                   Hiển thị {page * PAGE_SIZE + 1}\u2013{Math.min((page + 1) * PAGE_SIZE, filtered.length)} / {filtered.length}
                 </p>
                 <div className="flex gap-1">
-                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+                  <Button variant="outline" size="icon" className="h-9 w-9" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
-                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+                  <Button variant="outline" size="icon" className="h-9 w-9" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>
@@ -423,6 +553,28 @@ export default function MoneyManagementPage() {
                 {updateRegMutation.isPending ? 'Đang lưu...' : 'Lưu'}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal: Báo giá */}
+      {quoteStudent && (
+        <Dialog open onOpenChange={() => setQuoteStudent(null)}>
+          <DialogContent className="sm:max-w-[440px] max-h-[90vh] overflow-y-auto">
+            <div ref={quoteRef}>
+              <QuoteView data={buildQuoteData(quoteStudent)} />
+            </div>
+            <div className="flex flex-wrap gap-2 justify-center pt-2">
+              <Button onClick={handleSaveImage} size="sm">
+                <Download className="w-4 h-4 mr-1.5" />Lưu ảnh
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleCopyImage}>
+                <Copy className="w-4 h-4 mr-1.5" />Copy ảnh
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleCopyLink}>
+                <Link className="w-4 h-4 mr-1.5" />Copy link
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       )}

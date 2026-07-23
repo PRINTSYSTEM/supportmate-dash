@@ -2,8 +2,9 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { ClipboardList, Calendar, Clock, CheckCircle2, DollarSign, Loader2 } from 'lucide-react';
+import { ClipboardList, Calendar, Clock, CheckCircle2, DollarSign, Loader2, Filter } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -28,6 +29,7 @@ export default function DashboardPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedMetricDate, setSelectedMetricDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [showFilters, setShowFilters] = useState(false);
 
   const { data: stats, isLoading } = useQuery<Stats>({
     queryKey: ['dashboard-stats', dateFrom, dateTo],
@@ -91,30 +93,40 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
             <p className="text-sm text-muted-foreground">Tổng quan hoạt động hỗ trợ thi</p>
           </div>
-          <div className="flex gap-2 items-center">
-            <Select value={term} onValueChange={setTerm}>
-              <SelectTrigger className="w-36 bg-card"><SelectValue placeholder="Tất cả học kỳ" /></SelectTrigger>
-              <SelectContent>
-                {(terms as any[]).map(t => (
-                  <SelectItem key={t._id} value={t.termId}>{t.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={examType} onValueChange={setExamType}>
-              <SelectTrigger className="w-28 bg-card"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả loại thi</SelectItem>
-                <SelectItem value="PE">PE</SelectItem>
-                <SelectItem value="FE">FE</SelectItem>
-              </SelectContent>
-            </Select>
-            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36" placeholder="Từ ngày" />
-            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-36" placeholder="Đến ngày" />
+          <div className="flex flex-wrap gap-2 items-center">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 md:hidden"
+              onClick={() => setShowFilters(v => !v)}
+            >
+              <Filter className="w-4 h-4" />
+            </Button>
+            <div className={`flex-wrap gap-2 items-center ${showFilters ? 'flex' : 'hidden'} md:flex`}>
+              <Select value={term} onValueChange={setTerm}>
+                <SelectTrigger className="w-36 bg-card"><SelectValue placeholder="Tất cả học kỳ" /></SelectTrigger>
+                <SelectContent>
+                  {(terms as any[]).map(t => (
+                    <SelectItem key={t._id} value={t.termId}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={examType} onValueChange={setExamType}>
+                <SelectTrigger className="w-28 bg-card"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả loại thi</SelectItem>
+                  <SelectItem value="PE">PE</SelectItem>
+                  <SelectItem value="FE">FE</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36" placeholder="Từ ngày" />
+              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-36" placeholder="Đến ngày" />
+            </div>
           </div>
         </div>
 

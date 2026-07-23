@@ -66,12 +66,12 @@ export default function KeysPage() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Key Management</h1>
             <p className="text-sm text-muted-foreground">Manage license keys for exam tools</p>
           </div>
-          <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4 mr-2" />Add Key</Button>
+          <Button onClick={() => setShowAdd(true)} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" />Add Key</Button>
         </div>
         <Card className="shadow-sm border-0 shadow-foreground/5 overflow-hidden">
           {isLoading ? (
@@ -79,38 +79,38 @@ export default function KeysPage() {
           ) : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Key Code</TableHead>
-                    <TableHead>Tool</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Expiration</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(keysList as KeyItem[]).map(k => (
-                    <TableRow key={k._id} className="hover:bg-muted/30">
-                      <TableCell className="font-mono text-sm font-medium">{k.keyCode}</TableCell>
-                      <TableCell className="text-sm">{getTool(k.toolId)}</TableCell>
-                      <TableCell><Badge variant="outline">{k.type === 'by_day' ? 'By Day' : 'By Term'}</Badge></TableCell>
-                      <TableCell>
-                        <span className={`status-badge ${k.status === 'available' ? 'status-done' : 'status-cancelled'}`}>
-                          {k.status === 'available' ? 'Available' : 'Used'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-sm">{k.expirationDate}</TableCell>
-                      <TableCell className="text-right">
-                        {k.status === 'available' && (
-                          <Button variant="ghost" size="sm" className="text-destructive" onClick={() => markUsedMutation.mutate(k._id)}>
-                            <Ban className="w-4 h-4 mr-1" />Mark Used
-                          </Button>
-                        )}
-                      </TableCell>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Key Code</TableHead>
+                      <TableHead>Tool</TableHead>
+                      <TableHead className="hidden md:table-cell">Type</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="hidden md:table-cell">Expiration</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
+                  </TableHeader>
+                  <TableBody>
+                    {(keysList as KeyItem[]).map(k => (
+                      <TableRow key={k._id} className="hover:bg-muted/30">
+                        <TableCell className="font-mono text-sm font-medium truncate max-w-[100px] md:max-w-none">{k.keyCode}</TableCell>
+                        <TableCell className="text-sm truncate max-w-[80px] md:max-w-none">{getTool(k.toolId)}</TableCell>
+                        <TableCell className="hidden md:table-cell"><Badge variant="outline">{k.type === 'by_day' ? 'By Day' : 'By Term'}</Badge></TableCell>
+                        <TableCell>
+                          <span className={`status-badge ${k.status === 'available' ? 'status-done' : 'status-cancelled'}`}>
+                            {k.status === 'available' ? 'Available' : 'Used'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">{k.expirationDate}</TableCell>
+                        <TableCell className="text-right">
+                          {k.status === 'available' && (
+                            <Button variant="ghost" size="sm" className="text-destructive whitespace-nowrap" onClick={() => markUsedMutation.mutate(k._id)}>
+                              <Ban className="w-4 h-4 mr-1" />Mark Used
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
               </Table>
             </div>
           )}

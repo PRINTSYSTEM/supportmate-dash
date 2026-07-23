@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Pencil, ChevronLeft, ChevronRight, Loader2, Calendar, Trash2 } from 'lucide-react';
+import { Search, Pencil, ChevronLeft, ChevronRight, Loader2, Calendar, Trash2, Filter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -43,6 +43,7 @@ export default function RegistrationsPage() {
   const [filterDate, setFilterDate] = useState('');
   const [page, setPage] = useState(0);
   const [modalReg, setModalReg] = useState<RegistrationItem | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/registrations/${id}`),
@@ -135,53 +136,63 @@ export default function RegistrationsPage() {
         <Card className="shadow-sm border-0 shadow-foreground/5">
           <CardContent className="p-4">
             <div className="flex flex-wrap gap-3">
-              <div className="relative flex-1 min-w-[200px]">
+              <div className="relative flex-1 min-w-[160px] sm:min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input placeholder="Tìm kiếm theo MSSV hoặc Họ tên..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
               </div>
-              <Input
-                type="date"
-                value={filterDate}
-                onChange={e => setFilterDate(e.target.value)}
-                className="w-40"
-              />
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-40"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                  <SelectItem value="pending">Chờ xử lý</SelectItem>
-                  <SelectItem value="supporting">Đang hỗ trợ</SelectItem>
-                  <SelectItem value="done">Hoàn thành</SelectItem>
-                  <SelectItem value="failed">Thất bại</SelectItem>
-                  <SelectItem value="cancelled">Đã hủy</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={filterSubject} onValueChange={setFilterSubject}>
-                <SelectTrigger className="w-36"><SelectValue placeholder="Môn học" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả môn học</SelectItem>
-                  {subjects.map((s: string) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={filterCampus} onValueChange={setFilterCampus}>
-                <SelectTrigger className="w-32"><SelectValue placeholder="Cơ sở" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả cơ sở</SelectItem>
-                  <SelectItem value="HCM">HCM</SelectItem>
-                  <SelectItem value="HL">HL</SelectItem>
-                  <SelectItem value="CT">CT</SelectItem>
-                  <SelectItem value="QN">QN</SelectItem>
-                  <SelectItem value="DN">DN</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={filterExamType} onValueChange={setFilterExamType}>
-                <SelectTrigger className="w-32"><SelectValue placeholder="Loại thi" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả loại thi</SelectItem>
-                  <SelectItem value="PE">PE</SelectItem>
-                  <SelectItem value="FE">FE</SelectItem>
-                </SelectContent>
-              </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 md:hidden"
+                onClick={() => setShowFilters(v => !v)}
+              >
+                <Filter className="w-4 h-4" />
+              </Button>
+              <div className={`flex-wrap gap-3 ${showFilters ? 'flex' : 'hidden'} md:flex`}>
+                <Input
+                  type="date"
+                  value={filterDate}
+                  onChange={e => setFilterDate(e.target.value)}
+                  className="w-40"
+                />
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-40"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                    <SelectItem value="pending">Chờ xử lý</SelectItem>
+                    <SelectItem value="supporting">Đang hỗ trợ</SelectItem>
+                    <SelectItem value="done">Hoàn thành</SelectItem>
+                    <SelectItem value="failed">Thất bại</SelectItem>
+                    <SelectItem value="cancelled">Đã hủy</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterSubject} onValueChange={setFilterSubject}>
+                  <SelectTrigger className="w-36"><SelectValue placeholder="Môn học" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả môn học</SelectItem>
+                    {subjects.map((s: string) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={filterCampus} onValueChange={setFilterCampus}>
+                  <SelectTrigger className="w-32"><SelectValue placeholder="Cơ sở" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả cơ sở</SelectItem>
+                    <SelectItem value="HCM">HCM</SelectItem>
+                    <SelectItem value="HL">HL</SelectItem>
+                    <SelectItem value="CT">CT</SelectItem>
+                    <SelectItem value="QN">QN</SelectItem>
+                    <SelectItem value="DN">DN</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterExamType} onValueChange={setFilterExamType}>
+                  <SelectTrigger className="w-32"><SelectValue placeholder="Loại thi" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả loại thi</SelectItem>
+                    <SelectItem value="PE">PE</SelectItem>
+                    <SelectItem value="FE">FE</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -199,15 +210,15 @@ export default function RegistrationsPage() {
                       <TableHead>Giờ thi</TableHead>
                       <TableHead>MSSV</TableHead>
                       <TableHead>Họ và Tên</TableHead>
-                      <TableHead>Cơ sở</TableHead>
+                      <TableHead className="hidden md:table-cell">Cơ sở</TableHead>
                       <TableHead>Môn học</TableHead>
-                      <TableHead>Loại thi</TableHead>
-                      <TableHead>Tool</TableHead>
-                      <TableHead>Mã Key</TableHead>
-                      <TableHead>Loại Key</TableHead>
-                      <TableHead>Giá hỗ trợ</TableHead>
+                      <TableHead className="hidden md:table-cell">Loại thi</TableHead>
+                      <TableHead className="hidden md:table-cell">Tool</TableHead>
+                      <TableHead className="hidden md:table-cell">Mã Key</TableHead>
+                      <TableHead className="hidden md:table-cell">Loại Key</TableHead>
+                      <TableHead className="hidden md:table-cell">Giá hỗ trợ</TableHead>
                       <TableHead>Trạng thái</TableHead>
-                      <TableHead>Ghi chú</TableHead>
+                      <TableHead className="hidden md:table-cell">Ghi chú</TableHead>
                       <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -217,13 +228,13 @@ export default function RegistrationsPage() {
                       const isPE = session?.type === 'PE';
                       return (
                         <TableRow key={r._id} className="hover:bg-muted/30">
-                          <TableCell className="text-sm">{formatDate(session?.date)}</TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">{formatDate(session?.date)}</TableCell>
                           <TableCell className="text-sm whitespace-nowrap">{session ? session.startTime : '\u2014'}</TableCell>
                           <TableCell className="font-medium text-sm">{r.studentId}</TableCell>
-                          <TableCell className="text-sm">{r.customerName}</TableCell>
-                          <TableCell className="text-sm font-semibold">{r.campus ?? '\u2014'}</TableCell>
-                          <TableCell className="text-sm">{r.subjectId}</TableCell>
-                          <TableCell className="text-sm">
+                          <TableCell className="text-sm truncate max-w-[120px] md:max-w-none">{r.customerName}</TableCell>
+                          <TableCell className="hidden md:table-cell text-sm font-semibold">{r.campus ?? '\u2014'}</TableCell>
+                          <TableCell className="text-sm truncate max-w-[80px] md:max-w-none">{r.subjectId}</TableCell>
+                          <TableCell className="hidden md:table-cell text-sm">
                             {session ? (
                               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold border ${
                                 isPE 
@@ -234,14 +245,14 @@ export default function RegistrationsPage() {
                               </span>
                             ) : '\u2014'}
                           </TableCell>
-                          <TableCell className="text-sm">{getTool(r.toolId)}</TableCell>
-                          <TableCell className="text-sm font-mono">{r.keyCode ?? '\u2014'}</TableCell>
-                          <TableCell className="text-sm">{r.keyType === 'by_day' ? 'Theo ngày' : r.keyType === 'by_term' ? 'Theo kỳ' : '\u2014'}</TableCell>
-                          <TableCell className="text-sm font-semibold text-emerald-600 whitespace-nowrap">
+                          <TableCell className="hidden md:table-cell text-sm">{getTool(r.toolId)}</TableCell>
+                          <TableCell className="hidden md:table-cell text-sm font-mono">{r.keyCode ?? '\u2014'}</TableCell>
+                          <TableCell className="hidden md:table-cell text-sm">{r.keyType === 'by_day' ? 'Theo ngày' : r.keyType === 'by_term' ? 'Theo kỳ' : '\u2014'}</TableCell>
+                          <TableCell className="hidden md:table-cell text-sm font-semibold text-emerald-600 whitespace-nowrap">
                             {r.supportPrice ? formatVND(r.supportPrice) : '\u2014'}
                           </TableCell>
                           <TableCell><StatusBadge status={r.processStatus as any} /></TableCell>
-                          <TableCell className="text-sm text-muted-foreground max-w-[120px] truncate">{r.note || '\u2014'}</TableCell>
+                          <TableCell className="hidden md:table-cell text-sm text-muted-foreground max-w-[120px] truncate">{r.note || '\u2014'}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex gap-1 justify-end">
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setModalReg(r)}>
@@ -269,14 +280,14 @@ export default function RegistrationsPage() {
                 </Table>
               </div>
               <div className="flex items-center justify-between p-4 border-t">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground hidden sm:block">
                   Hiển thị {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} trên tổng số {filtered.length}
                 </p>
                 <div className="flex gap-1">
-                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+                  <Button variant="outline" size="icon" className="h-9 w-9" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
-                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+                  <Button variant="outline" size="icon" className="h-9 w-9" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>

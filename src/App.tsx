@@ -17,10 +17,12 @@ import ImportDataPage from "./pages/ImportDataPage";
 import GuestRegisterPage from "./pages/GuestRegisterPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
+import QuotePage from "./pages/QuotePage";
 import ToolRegistrationsPage from "./pages/ToolRegistrationsPage";
 import MoneyManagementPage from "./pages/MoneyManagementPage";
 import PricingPage from "./pages/PricingPage";
 import ToolsPage from "./pages/ToolsPage";
+import TodaySupportPage from "./pages/TodaySupportPage";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +39,7 @@ const App = () => (
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<GuestRegisterPage />} />
               <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+              <Route path="/today" element={<ProtectedRoute><TodaySupportPage /></ProtectedRoute>} />
               <Route path="/registrations" element={<ProtectedRoute><RegistrationsPage /></ProtectedRoute>} />
               <Route path="/subjects" element={<ProtectedRoute><SubjectsPage /></ProtectedRoute>} />
               <Route path="/terms" element={<ProtectedRoute><TermsPage /></ProtectedRoute>} />
@@ -47,6 +50,7 @@ const App = () => (
               <Route path="/money-management" element={<ProtectedRoute><MoneyManagementPage /></ProtectedRoute>} />
               <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
               <Route path="/tools" element={<ProtectedRoute><ToolsPage /></ProtectedRoute>} />
+              <Route path="/quote/:id" element={<QuotePage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

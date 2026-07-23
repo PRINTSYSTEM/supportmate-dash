@@ -62,9 +62,11 @@ export default function ImportDataPage() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <div>
-          <h1 className="text-2xl font-bold">Import Data</h1>
-          <p className="text-sm text-muted-foreground">Upload Excel or CSV files to import registrations</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">Import Data</h1>
+            <p className="text-sm text-muted-foreground">Upload Excel or CSV files to import registrations</p>
+          </div>
         </div>
 
         <Card className="shadow-sm border-0 shadow-foreground/5">
@@ -95,25 +97,25 @@ export default function ImportDataPage() {
               <CardContent>
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/50">
-                        <TableHead>Customer Name</TableHead>
-                        <TableHead>Subject Code</TableHead>
-                        <TableHead>Time</TableHead>
-                        <TableHead>Tool</TableHead>
-                        <TableHead>Seller</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {preview.map((row, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="text-sm">{row.customerName}</TableCell>
-                          <TableCell className="text-sm">{row.subjectCode}</TableCell>
-                          <TableCell className="text-sm">{row.time}</TableCell>
-                          <TableCell className="text-sm">{row.tool}</TableCell>
-                          <TableCell className="text-sm">{row.seller}</TableCell>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead>Customer Name</TableHead>
+                          <TableHead>Subject Code</TableHead>
+                          <TableHead>Time</TableHead>
+                          <TableHead>Tool</TableHead>
+                          <TableHead className="hidden md:table-cell">Seller</TableHead>
                         </TableRow>
-                      ))}
+                      </TableHeader>
+                      <TableBody>
+                        {preview.map((row, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="text-sm truncate max-w-[120px] md:max-w-none">{row.customerName}</TableCell>
+                            <TableCell className="text-sm">{row.subjectCode}</TableCell>
+                            <TableCell className="text-sm whitespace-nowrap">{row.time}</TableCell>
+                            <TableCell className="text-sm truncate max-w-[100px] md:max-w-none">{row.tool}</TableCell>
+                            <TableCell className="hidden md:table-cell text-sm">{row.seller}</TableCell>
+                          </TableRow>
+                        ))}
                     </TableBody>
                   </Table>
                 </div>

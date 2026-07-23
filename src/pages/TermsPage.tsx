@@ -94,12 +94,12 @@ export default function TermsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Terms</h1>
             <p className="text-sm text-muted-foreground">Manage academic terms / semesters</p>
           </div>
-          <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" />Add Term</Button>
+          <Button onClick={openNew} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" />Add Term</Button>
         </div>
         <Card className="shadow-sm border-0 shadow-foreground/5 overflow-hidden">
           {isLoading ? (

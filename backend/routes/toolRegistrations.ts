@@ -476,6 +476,59 @@ router.put('/summary/:studentId', requireAuth, async (req: AuthRequest, res: Res
 });
 
 // ──────────────────────────────────────────────────
+// GET /tool-registrations/:id/quote
+// Public endpoint — trả về data báo giá (đã che thông tin)
+// ──────────────────────────────────────────────────
+router.get('/:id/quote', async (req, res) => {
+  try {
+    const reg = await ToolRegistration.findById(req.params.id).lean();
+    if (!reg) return res.status(404).json({ message: 'Not found' });
+
+    let toolTypeName = '';
+    if (reg.toolTypeId) {
+      const tt = await ToolType.findById(reg.toolTypeId).lean();
+      if (tt) toolTypeName = tt.name;
+    }
+
+    // Mask student info
+    const nameParts = (reg.customerName || '').trim().split(/\s+/);
+    const maskedName = nameParts.length > 2
+      ? `${nameParts[0]} *** ${nameParts[nameParts.length - 1]}`
+      : reg.customerName;
+    const maskedId = (reg.studentId || '').length > 5
+      ? reg.studentId.substring(0, 2) + '***' + reg.studentId.substring(reg.studentId.length - 3)
+      : reg.studentId;
+
+    const regsData = await Registration.find({
+      toolRegistrationId: req.params.id,
+      processStatus: { $nin: ['failed', 'cancelled'] }
+    }).lean();
+
+    const supportFee = regsData.reduce((sum, r) => sum + (r.supportPrice || 0), 0);
+    const discount = reg.priceSnapshot?.discountEnabled ? (reg.priceSnapshot?.discountAmount || 0) : 0;
+    const toolFee = reg.priceSnapshot?.toolPrice || 0;
+
+    res.json({
+      customerName: maskedName,
+      studentId: maskedId,
+      campus: reg.campus,
+      toolPackage: reg.toolPackage,
+      toolTypeName,
+      dates: reg.dates,
+      toolFee,
+      supportFee,
+      discount,
+      amountReceived: reg.amountReceived || 0,
+      totalPrice: Math.max(toolFee + supportFee - discount - (reg.amountReceived || 0), 0),
+      createdAt: reg.createdAt,
+    });
+  } catch (err) {
+    console.error('GET /tool-registrations/:id/quote error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ──────────────────────────────────────────────────
 // GET /tool-registrations/:id, PUT /:id, DELETE /:id
 // Các route tham số hóa — đặt sau cùng
 // ──────────────────────────────────────────────────

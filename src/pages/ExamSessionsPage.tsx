@@ -103,16 +103,16 @@ export default function ExamSessionsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Exam Sessions</h1>
             <p className="text-sm text-muted-foreground">Manage exam session schedules</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowImport(true)}>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={() => setShowImport(true)} className="flex-1 sm:flex-none">
               <Upload className="w-4 h-4 mr-2" />Import Excel
             </Button>
-            <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" />Create Session</Button>
+            <Button onClick={openNew} className="flex-1 sm:flex-none"><Plus className="w-4 h-4 mr-2" />Create Session</Button>
           </div>
           </div>
         <Card className="shadow-sm border-0 shadow-foreground/5 overflow-hidden">
@@ -121,51 +121,51 @@ export default function ExamSessionsPage() {
           ) : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Date</TableHead>
-                    <TableHead>Start</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Campus</TableHead>
-                    <TableHead>Term</TableHead>
-                    <TableHead>Students</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(sessions as SessionData[]).map(s => (
-                    <TableRow key={s._id} className="hover:bg-muted/30">
-                      <TableCell className="text-sm">{s.date}</TableCell>
-                      <TableCell className="text-sm">{s.startTime}</TableCell>
-                      <TableCell className="text-sm font-medium">{s.subjectId}</TableCell>
-                      <TableCell><Badge variant={s.type === 'PE' ? 'default' : 'secondary'}>{s.type}</Badge></TableCell>
-                      <TableCell className="text-sm">{s.campus}</TableCell>
-                      <TableCell className="text-sm">{s.term}</TableCell>
-                      <TableCell className="text-sm font-medium">{s.studentCount}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-1 justify-end">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditSession(s); setIsNew(false); }}>
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => {
-                              if (confirm('Bạn có chắc chắn muốn xóa ca thi này?')) {
-                                deleteMutation.mutate(s._id);
-                              }
-                            }}
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Date</TableHead>
+                      <TableHead className="hidden md:table-cell">Start</TableHead>
+                      <TableHead>Subject</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="hidden md:table-cell">Campus</TableHead>
+                      <TableHead className="hidden md:table-cell">Term</TableHead>
+                      <TableHead className="hidden md:table-cell">Students</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
+                  </TableHeader>
+                  <TableBody>
+                    {(sessions as SessionData[]).map(s => (
+                      <TableRow key={s._id} className="hover:bg-muted/30">
+                        <TableCell className="text-sm whitespace-nowrap">{s.date}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">{s.startTime}</TableCell>
+                        <TableCell className="text-sm font-medium">{s.subjectId}</TableCell>
+                        <TableCell><Badge variant={s.type === 'PE' ? 'default' : 'secondary'}>{s.type}</Badge></TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">{s.campus}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">{s.term}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm font-medium">{s.studentCount}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-1 justify-end">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditSession(s); setIsNew(false); }}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => {
+                                if (confirm('Bạn có chắc chắn muốn xóa ca thi này?')) {
+                                  deleteMutation.mutate(s._id);
+                                }
+                              }}
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
               </Table>
             </div>
           )}

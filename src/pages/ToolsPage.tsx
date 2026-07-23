@@ -94,12 +94,12 @@ export default function ToolsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Quản lý Tool</h1>
             <p className="text-sm text-muted-foreground">Quản lý danh sách các tool hỗ trợ thi</p>
           </div>
-          <Button onClick={openNew} className="gap-1">
+          <Button onClick={openNew} className="gap-1 w-full sm:w-auto">
             <Plus className="w-4 h-4" /> Thêm Tool
           </Button>
         </div>

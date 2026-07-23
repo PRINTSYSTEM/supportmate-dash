@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Link } from 'react-router-dom';
-import { Search, Pencil, ChevronLeft, ChevronRight, Loader2, Trash2, Wallet } from 'lucide-react';
+import { Search, Pencil, ChevronLeft, ChevronRight, Loader2, Trash2, Wallet, Filter } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -33,6 +33,7 @@ export default function ToolRegistrationsPage() {
   const [filterPackage, setFilterPackage] = useState('all');
   const [page, setPage] = useState(0);
   const [modalReg, setModalReg] = useState<ToolRegistration | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
   const [editKeyCode, setEditKeyCode] = useState('');
   const [editStatus, setEditStatus] = useState<ToolProcessStatus>('pending');
   const [editNote, setEditNote] = useState('');
@@ -162,12 +163,12 @@ export default function ToolRegistrationsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Đăng ký Tool</h1>
             <p className="text-sm text-muted-foreground">Quản lý đăng ký tool hỗ trợ thi</p>
           </div>
-          <Button variant="outline" asChild>
+          <Button variant="outline" asChild className="w-full sm:w-auto">
             <Link to="/money-management"><Wallet className="w-4 h-4 mr-2" />Quản lý tiền</Link>
           </Button>
         </div>
@@ -202,29 +203,39 @@ export default function ToolRegistrationsPage() {
         <Card className="shadow-sm border-0 shadow-foreground/5">
           <CardContent className="p-4">
             <div className="flex flex-wrap gap-3">
-              <div className="relative flex-1 min-w-[200px]">
+              <div className="relative flex-1 min-w-[160px] sm:min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input placeholder="Tìm kiếm theo MSSV hoặc Họ tên..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
               </div>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-36"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                  <SelectItem value="pending">Chờ xử lý</SelectItem>
-                  <SelectItem value="supporting">Đang hỗ trợ</SelectItem>
-                  <SelectItem value="done">Hoàn thành</SelectItem>
-                  <SelectItem value="failed">Thất bại</SelectItem>
-                  <SelectItem value="cancelled">Đã hủy</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={filterPackage} onValueChange={setFilterPackage}>
-                <SelectTrigger className="w-36"><SelectValue placeholder="Gói" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả các gói</SelectItem>
-                  <SelectItem value="day">Ngày</SelectItem>
-                  <SelectItem value="term">Kỳ</SelectItem>
-                </SelectContent>
-              </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 md:hidden"
+                onClick={() => setShowFilters(v => !v)}
+              >
+                <Filter className="w-4 h-4" />
+              </Button>
+              <div className={`flex-wrap gap-3 ${showFilters ? 'flex' : 'hidden'} md:flex`}>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-36"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                    <SelectItem value="pending">Chờ xử lý</SelectItem>
+                    <SelectItem value="supporting">Đang hỗ trợ</SelectItem>
+                    <SelectItem value="done">Hoàn thành</SelectItem>
+                    <SelectItem value="failed">Thất bại</SelectItem>
+                    <SelectItem value="cancelled">Đã hủy</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterPackage} onValueChange={setFilterPackage}>
+                  <SelectTrigger className="w-36"><SelectValue placeholder="Gói" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả các gói</SelectItem>
+                    <SelectItem value="day">Ngày</SelectItem>
+                    <SelectItem value="term">Kỳ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -241,12 +252,12 @@ export default function ToolRegistrationsPage() {
                       <TableHead>Ngày đăng ký</TableHead>
                       <TableHead>MSSV</TableHead>
                       <TableHead>Họ tên</TableHead>
-                      <TableHead>Cơ sở</TableHead>
-                      <TableHead>Tool</TableHead>
+                      <TableHead className="hidden md:table-cell">Cơ sở</TableHead>
+                      <TableHead className="hidden md:table-cell">Tool</TableHead>
                       <TableHead>Gói</TableHead>
-                      <TableHead>Mã Key</TableHead>
-                      <TableHead>Giá Tool</TableHead>
-                      <TableHead>Giá Support</TableHead>
+                      <TableHead className="hidden md:table-cell">Mã Key</TableHead>
+                      <TableHead className="hidden md:table-cell">Giá Tool</TableHead>
+                      <TableHead className="hidden md:table-cell">Giá Support</TableHead>
                       <TableHead>Tổng phí dịch vụ</TableHead>
                       <TableHead>Tiền đã nhận</TableHead>
                       <TableHead>Còn nợ</TableHead>
@@ -259,15 +270,15 @@ export default function ToolRegistrationsPage() {
                       <TableRow key={r._id} className="hover:bg-muted/30">
                         <TableCell className="text-sm whitespace-nowrap">{new Date(r.createdAt).toLocaleDateString('vi-VN')}</TableCell>
                         <TableCell className="font-medium text-sm">{r.studentId}</TableCell>
-                        <TableCell className="text-sm">{r.customerName}</TableCell>
-                        <TableCell className="text-sm font-semibold">{r.campus ?? '\u2014'}</TableCell>
-                        <TableCell className="text-sm">{getToolTypeName(r.toolTypeId)}</TableCell>
+                        <TableCell className="text-sm truncate max-w-[120px] md:max-w-none">{r.customerName}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm font-semibold">{r.campus ?? '\u2014'}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">{getToolTypeName(r.toolTypeId)}</TableCell>
                         <TableCell className="text-sm">{getToolPackageLabel(r.toolPackage)}</TableCell>
-                        <TableCell className="text-sm font-mono">{r.keyCode || '—'}</TableCell>
-                        <TableCell className="text-sm font-semibold whitespace-nowrap">{formatVND(r.priceSnapshot?.toolPrice ?? 0)}</TableCell>
-                        <TableCell className="text-sm font-semibold text-emerald-600 whitespace-nowrap">{formatVND(getToolRegStats(r._id).totalAllSupportPrice)}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm font-mono">{r.keyCode || '—'}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm font-semibold whitespace-nowrap">{formatVND(r.priceSnapshot?.toolPrice ?? 0)}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm font-semibold text-emerald-600 whitespace-nowrap">{formatVND(getToolRegStats(r._id).totalAllSupportPrice)}</TableCell>
                         <TableCell className="text-sm">
-                          <div className="font-bold text-foreground">{formatVND(r.totalPrice)}</div>
+                          <div className="font-bold text-foreground whitespace-nowrap">{formatVND(r.totalPrice)}</div>
                           {getToolRegStats(r._id).totalSupportPrice > 0 && (
                             <div className="text-[10px] text-emerald-600 font-semibold mt-0.5 whitespace-nowrap bg-emerald-50 border border-emerald-200 rounded px-1 py-0.5 inline-block">
                               Đã hoàn thành: {formatVND(getToolRegStats(r._id).totalSupportPrice)}
@@ -307,14 +318,14 @@ export default function ToolRegistrationsPage() {
                 </Table>
               </div>
               <div className="flex items-center justify-between p-4 border-t">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground hidden sm:block">
                   Hiển thị {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} trên tổng số {filtered.length}
                 </p>
                 <div className="flex gap-1">
-                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+                  <Button variant="outline" size="icon" className="h-9 w-9" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
-                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+                  <Button variant="outline" size="icon" className="h-9 w-9" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>
