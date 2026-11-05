@@ -20,7 +20,9 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
     if (!termId?.trim() || !name?.trim()) {
       return res.status(400).json({ message: 'termId and name required' });
     }
-    const term = await Term.create({ termId: termId.trim(), name: name.trim() });
+    const term = await Term.create({ termId: termId.trim(), name: name.trim(), isCurrent: true });
+    // Set all other terms to not current
+    await Term.updateMany({ termId: { $ne: termId.trim() } }, { isCurrent: false });
     res.status(201).json(term);
   } catch (err: any) {
     if (err.code === 11000) return res.status(409).json({ message: 'Term already exists' });
@@ -31,6 +33,10 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
 
 router.put('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
+    const { isCurrent } = req.body;
+    if (isCurrent) {
+      await Term.updateMany({}, { isCurrent: false });
+    }
     const updated = await Term.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!updated) return res.status(404).json({ message: 'Not found' });
     res.json(updated);

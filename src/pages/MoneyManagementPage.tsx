@@ -16,9 +16,10 @@ import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
 import { QuoteView } from '@/components/QuoteView';
 import type { QuoteData } from '@/components/QuoteView';
+import { ThesisMoneySection } from '@/components/ThesisMoneySection';
 import type { MoneySummaryItem, ToolProcessStatus } from '@/data/types';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 8;
 
 function formatVND(amount: number): string {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -26,10 +27,11 @@ function formatVND(amount: number): string {
 
 export default function MoneyManagementPage() {
   const queryClient = useQueryClient();
+  const [moneyTab, setMoneyTab] = useState<'exam' | 'thesis'>('exam');
   const [search, setSearch] = useState('');
   const [filterPackage, setFilterPackage] = useState('all');
+  const [term, setTerm] = useState<string | undefined>(undefined); // NEW: term filter
   const [page, setPage] = useState(0);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [merging, setMerging] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -143,9 +145,14 @@ export default function MoneyManagementPage() {
     toast.success('Đã copy link báo giá');
   };
 
+  const { data: terms = [] } = useQuery({
+    queryKey: ['terms'],
+    queryFn: () => api.get('/terms').then(r => r.data),
+  });
+
   const { data: summary, isLoading } = useQuery({
-    queryKey: ['money-summary'],
-    queryFn: () => api.get('/tool-registrations/summary').then(r => r.data),
+    queryKey: ['money-summary', term],
+    queryFn: () => api.get('/tool-registrations/summary', { params: { search, term } }).then(r => r.data),
     refetchOnMount: true,
   });
 
@@ -174,16 +181,19 @@ export default function MoneyManagementPage() {
     const totalDiscount = items.reduce((s, i) => s + i.discount, 0);
     const totalReceived = items.reduce((s, i) => s + i.amountReceived, 0);
     const totalDebt = items.reduce((s, i) => s + i.debt, 0);
-    return { totalToolFee, totalSupportFee, totalDiscount, totalReceived, totalDebt, studentCount: items.length };
+    const totalRevenue = totalToolFee + totalSupportFee - totalDiscount;
+    return { totalToolFee, totalSupportFee, totalDiscount, totalReceived, totalDebt, totalRevenue, studentCount: items.length };
   }, [items]);
 
   const filtered = useMemo(() => {
     return items.filter(i => {
       const matchSearch = !search || i.studentId.toLowerCase().includes(search.toLowerCase()) || i.customerName.toLowerCase().includes(search.toLowerCase());
       const matchPackage = filterPackage === 'all' || i.registrations.some(r => r.toolPackage === filterPackage);
-      return matchSearch && matchPackage;
+      // Term filter: if term is set, only show students who have registrations (we'll rely on backend filtering)
+      const matchTerm = !term || term === 'all';
+      return matchSearch && matchPackage && matchTerm;
     });
-  }, [items, search, filterPackage]);
+  }, [items, search, filterPackage, term]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -288,193 +298,180 @@ export default function MoneyManagementPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <Card className="shadow-sm border-0 shadow-foreground/5">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Tổng tiền Tool</p>
-              <p className="text-xl font-bold mt-1">{formatVND(billingMetrics.totalToolFee)}</p>
-            </CardContent>
-          </Card>
-          <Card className="shadow-sm border-0 shadow-foreground/5">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Tổng tiền Support</p>
-              <p className="text-xl font-bold mt-1">{formatVND(billingMetrics.totalSupportFee)}</p>
-            </CardContent>
-          </Card>
-          <Card className="shadow-sm border-0 shadow-foreground/5">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Đã nhận</p>
-              <p className="text-xl font-bold mt-1 text-blue-600">{formatVND(billingMetrics.totalReceived)}</p>
-            </CardContent>
-          </Card>
-          <Card className="shadow-sm border-0 shadow-foreground/5">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Còn nợ</p>
-              <p className="text-xl font-bold mt-1 text-rose-600">{formatVND(billingMetrics.totalDebt)}</p>
-            </CardContent>
-          </Card>
-          <Card className="shadow-sm border-0 shadow-foreground/5">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Tổng sinh viên</p>
-              <p className="text-xl font-bold mt-1">{billingMetrics.studentCount}</p>
-            </CardContent>
-          </Card>
+        <div className="flex gap-2">
+          <Button
+            variant={moneyTab === 'exam' ? 'default' : 'outline'}
+            onClick={() => setMoneyTab('exam')}
+          >
+            Hỗ trợ thi
+          </Button>
+          <Button
+            variant={moneyTab === 'thesis' ? 'default' : 'outline'}
+            onClick={() => setMoneyTab('thesis')}
+          >
+            Khóa luận / Đồ án
+          </Button>
         </div>
 
-        <Card className="shadow-sm border-0 shadow-foreground/5">
-          <CardContent className="p-4">
-            <div className="flex flex-wrap gap-3">
-              <div className="relative flex-1 min-w-[160px] sm:min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Tìm kiếm theo MSSV hoặc Họ tên..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-              </div>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 md:hidden"
-                onClick={() => setShowFilters(v => !v)}
-              >
-                <Filter className="w-4 h-4" />
-              </Button>
-              <div className={`flex-wrap gap-3 ${showFilters ? 'flex' : 'hidden'} md:flex`}>
-                <Select value={filterPackage} onValueChange={setFilterPackage}>
-                  <SelectTrigger className="w-36"><SelectValue placeholder="Gói" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tất cả gói</SelectItem>
-                    <SelectItem value="day">Ngày</SelectItem>
-                    <SelectItem value="term">Kỳ</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ['money-summary'] })}>
-                  <RefreshCw className="w-4 h-4 mr-2" />Làm mới
-                </Button>
-              </div>
+        {moneyTab === 'exam' ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+              <Card className="shadow-sm border-0 shadow-foreground/5">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Tổng doanh thu</p>
+                  <p className="text-xl font-bold mt-1 text-emerald-700">{formatVND(billingMetrics.totalRevenue)}</p>
+                </CardContent>
+              </Card>
+              <Card className="shadow-sm border-0 shadow-foreground/5">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Tổng tiền Tool</p>
+                  <p className="text-xl font-bold mt-1">{formatVND(billingMetrics.totalToolFee)}</p>
+                </CardContent>
+              </Card>
+              <Card className="shadow-sm border-0 shadow-foreground/5">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Tổng tiền Support</p>
+                  <p className="text-xl font-bold mt-1">{formatVND(billingMetrics.totalSupportFee)}</p>
+                </CardContent>
+              </Card>
+              <Card className="shadow-sm border-0 shadow-foreground/5">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Đã nhận</p>
+                  <p className="text-xl font-bold mt-1 text-blue-600">{formatVND(billingMetrics.totalReceived)}</p>
+                </CardContent>
+              </Card>
+              <Card className="shadow-sm border-0 shadow-foreground/5">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Còn nợ</p>
+                  <p className="text-xl font-bold mt-1 text-rose-600">{formatVND(billingMetrics.totalDebt)}</p>
+                </CardContent>
+              </Card>
+              <Card className="shadow-sm border-0 shadow-foreground/5">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Tổng sinh viên</p>
+                  <p className="text-xl font-bold mt-1">{billingMetrics.studentCount}</p>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
 
-        <Card className="shadow-sm border-0 shadow-foreground/5 overflow-hidden">
-          {isLoading ? (
-            <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead className="w-6"></TableHead>
-                      <TableHead>MSSV</TableHead>
-                      <TableHead>Họ tên</TableHead>
-                      <TableHead className="hidden md:table-cell">CS</TableHead>
-                      <TableHead className="text-center">SL</TableHead>
-                      <TableHead className="hidden md:table-cell">Giá Tool</TableHead>
-                      <TableHead className="hidden md:table-cell">Giá Support</TableHead>
-                      <TableHead className="hidden md:table-cell">Giảm giá</TableHead>
-                      <TableHead className="hidden md:table-cell">Tổng phí DV</TableHead>
-                      <TableHead className="hidden md:table-cell">Tiền nhận</TableHead>
-                      <TableHead>Còn nợ</TableHead>
-                      <TableHead className="text-right">Thao tác</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paged.map(item => {
-                      const isExpanded = expandedId === item.studentId;
-                      return (
-                        <Fragment key={item.studentId}>
-                          <TableRow className="hover:bg-muted/30 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : item.studentId)}>
-                            <TableCell className="w-6">
-                              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                            </TableCell>
-                            <TableCell className="font-bold text-sm">{item.studentId}</TableCell>
-                            <TableCell className="text-sm truncate max-w-[120px] md:max-w-none">{item.customerName}</TableCell>
-                            <TableCell className="hidden md:table-cell text-sm">{item.campus}</TableCell>
-                            <TableCell className="text-sm text-center">{item.registrationCount}</TableCell>
-                            <TableCell className="hidden md:table-cell text-sm font-semibold whitespace-nowrap">{formatVND(item.toolFee)}</TableCell>
-                            <TableCell className="hidden md:table-cell text-sm font-semibold text-emerald-600 whitespace-nowrap">{formatVND(item.supportFee)}</TableCell>
-                            <TableCell className="hidden md:table-cell text-sm font-semibold text-orange-600 whitespace-nowrap">{formatVND(item.discount)}</TableCell>
-                            <TableCell className="hidden md:table-cell text-sm font-bold whitespace-nowrap">{formatVND(item.totalServiceFee)}</TableCell>
-                            <TableCell className="hidden md:table-cell text-sm font-semibold text-blue-600 whitespace-nowrap">{formatVND(item.amountReceived)}</TableCell>
-                            <TableCell className="text-sm font-bold text-rose-600 whitespace-nowrap">{formatVND(item.debt)}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex gap-1 justify-end">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); setQuoteStudent(item); }}>
-                                  <FileText className="w-4 h-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); openEditStudent(item); }}>
-                                  <Pencil className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                          {isExpanded && (
-                            <TableRow key={`${item.studentId}-detail`}>
-                              <TableCell colSpan={12} className="p-0 bg-muted/10">
-                                <div className="p-4">
-                                  <div className="text-sm font-semibold mb-2 text-muted-foreground">Chi tiết đăng ký</div>
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow className="bg-muted/30">
-                                        <TableHead className="text-xs">Ngày ĐK</TableHead>
-                                        <TableHead className="text-xs">Gói</TableHead>
-                                        <TableHead className="hidden sm:table-cell text-xs">Tool</TableHead>
-                                        <TableHead className="hidden sm:table-cell text-xs">Giá Tool</TableHead>
-                                        <TableHead className="hidden sm:table-cell text-xs">Support</TableHead>
-                                        <TableHead className="hidden sm:table-cell text-xs">Giảm</TableHead>
-                                        <TableHead className="text-xs">Tổng</TableHead>
-                                        <TableHead className="hidden sm:table-cell text-xs">Đã nhận</TableHead>
-                                        <TableHead className="text-xs">Trạng thái</TableHead>
-                                        <TableHead className="hidden sm:table-cell text-xs">Key</TableHead>
-                                        <TableHead className="text-xs text-right">Sửa</TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {item.registrations.map(reg => (
-                                        <TableRow key={reg._id} className="hover:bg-muted/20">
-                                          <TableCell className="text-xs whitespace-nowrap">{new Date(reg.createdAt).toLocaleDateString('vi-VN')}</TableCell>
-                                          <TableCell className="text-xs">{getToolPackageLabel(reg.toolPackage)}</TableCell>
-                                          <TableCell className="hidden sm:table-cell text-xs">{getToolTypeName(reg.toolTypeId)}</TableCell>
-                                          <TableCell className="hidden sm:table-cell text-xs font-semibold">{formatVND(reg.priceSnapshot?.toolPrice ?? 0)}</TableCell>
-                                          <TableCell className="hidden sm:table-cell text-xs text-emerald-600">{formatVND(reg.totalPrice - (reg.priceSnapshot?.toolPrice ?? 0) + (reg.priceSnapshot?.discountEnabled ? reg.priceSnapshot.discountAmount : 0))}</TableCell>
-                                          <TableCell className="hidden sm:table-cell text-xs text-orange-600">{reg.priceSnapshot?.discountEnabled ? formatVND(reg.priceSnapshot.discountAmount) : '\u2014'}</TableCell>
-                                          <TableCell className="text-xs font-semibold">{formatVND(reg.totalPrice)}</TableCell>
-                                          <TableCell className="hidden sm:table-cell text-xs text-blue-600">{formatVND(reg.amountReceived)}</TableCell>
-                                          <TableCell className="text-xs"><StatusBadge status={reg.processStatus as any} /></TableCell>
-                                          <TableCell className="hidden sm:table-cell text-xs font-mono">{reg.keyCode || '\u2014'}</TableCell>
-                                          <TableCell className="text-xs text-right">
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => { e.stopPropagation(); openEditReg(reg); }}>
-                                              <Pencil className="w-3.5 h-3.5" />
-                                            </Button>
-                                          </TableCell>
-                                        </TableRow>
-                                      ))}
-                                    </TableBody>
-                                  </Table>
+            <Card className="shadow-sm border-0 shadow-foreground/5">
+              <CardContent className="p-4">
+                <div className="flex flex-wrap gap-3">
+                  <div className="relative flex-1 min-w-[160px] sm:min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input placeholder="Tìm kiếm theo MSSV hoặc Họ tên..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 md:hidden"
+                    onClick={() => setShowFilters(v => !v)}
+                  >
+                    <Filter className="w-4 h-4" />
+                  </Button>
+                  <div className={`flex-wrap gap-3 ${showFilters ? 'flex' : 'hidden'} md:flex`}>
+                    <Select value={filterPackage} onValueChange={setFilterPackage}>
+                      <SelectTrigger className="w-36"><SelectValue placeholder="Gói" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tất cả gói</SelectItem>
+                        <SelectItem value="day">Ngày</SelectItem>
+                        <SelectItem value="term">Kỳ</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={term} onValueChange={setTerm}>
+                      <SelectTrigger className="w-36"><SelectValue placeholder="Học kỳ" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tất cả học kỳ</SelectItem>
+                        {(terms as any[]).map(t => (
+                          <SelectItem key={t._id} value={t.termId}>{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ['money-summary'] })}>
+                      <RefreshCw className="w-4 h-4 mr-2" />Làm mới
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm border-0 shadow-foreground/5 overflow-hidden">
+              {isLoading ? (
+                <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead>MSSV</TableHead>
+                          <TableHead>Họ tên</TableHead>
+                          <TableHead className="hidden md:table-cell">CS</TableHead>
+                          <TableHead className="text-center">SL</TableHead>
+                          <TableHead className="hidden md:table-cell">Giá Tool</TableHead>
+                          <TableHead className="hidden md:table-cell">Giá Support</TableHead>
+                          <TableHead className="hidden md:table-cell">Giảm giá</TableHead>
+                          <TableHead className="hidden md:table-cell">Tổng phí DV</TableHead>
+                          <TableHead className="hidden md:table-cell">Tiền nhận</TableHead>
+                          <TableHead>Còn nợ</TableHead>
+                          <TableHead className="hidden lg:table-cell">Ghi chú</TableHead>
+                          <TableHead className="text-right">Thao tác</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paged.map(item => {
+                          const notes = item.registrations.map(r => r.note).filter(Boolean).join('; ');
+                          return (
+                            <TableRow key={item.studentId} className="hover:bg-muted/30">
+                              <TableCell className="font-bold text-sm">{item.studentId}</TableCell>
+                              <TableCell className="text-sm truncate max-w-[120px] md:max-w-none">{item.customerName}</TableCell>
+                              <TableCell className="hidden md:table-cell text-sm">{item.campus}</TableCell>
+                              <TableCell className="text-sm text-center">{item.registrationCount}</TableCell>
+                              <TableCell className="hidden md:table-cell text-sm font-semibold whitespace-nowrap">{formatVND(item.toolFee)}</TableCell>
+                              <TableCell className="hidden md:table-cell text-sm font-semibold text-emerald-600 whitespace-nowrap">{formatVND(item.supportFee)}</TableCell>
+                              <TableCell className="hidden md:table-cell text-sm font-semibold text-orange-600 whitespace-nowrap">{formatVND(item.discount)}</TableCell>
+                              <TableCell className="hidden md:table-cell text-sm font-bold whitespace-nowrap">{formatVND(item.totalServiceFee)}</TableCell>
+                              <TableCell className="hidden md:table-cell text-sm font-semibold text-blue-600 whitespace-nowrap">{formatVND(item.amountReceived)}</TableCell>
+                              <TableCell className="text-sm font-bold text-rose-600 whitespace-nowrap">{formatVND(item.debt)}</TableCell>
+                              <TableCell className="hidden lg:table-cell text-sm text-muted-foreground truncate max-w-[150px]" title={notes}>
+                                {notes || '—'}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex gap-1 justify-end">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); setQuoteStudent(item); }}>
+                                    <FileText className="w-4 h-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); openEditStudent(item); }}>
+                                    <Pencil className="w-4 h-4" />
+                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
-                          )}
-                        </Fragment>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="flex items-center justify-between p-4 border-t">
-                <p className="text-sm text-muted-foreground hidden sm:block">
-                  Hiển thị {page * PAGE_SIZE + 1}\u2013{Math.min((page + 1) * PAGE_SIZE, filtered.length)} / {filtered.length}
-                </p>
-                <div className="flex gap-1">
-                  <Button variant="outline" size="icon" className="h-9 w-9" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" className="h-9 w-9" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </Card>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex items-center justify-between p-4 border-t">
+                    <p className="text-sm text-muted-foreground hidden sm:block">
+                      Hiển thị {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} / {filtered.length}
+                    </p>
+                    <div className="flex gap-1">
+                      <Button variant="outline" size="icon" className="h-9 w-9" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <Button variant="outline" size="icon" className="h-9 w-9" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </Card>
+          </>
+        ) : (
+          <ThesisMoneySection />
+        )}
       </div>
 
       {/* Modal: Sửa thông tin tài chính sinh viên */}
@@ -531,8 +528,8 @@ export default function MoneyManagementPage() {
                   <SelectContent>
                     <SelectItem value="pending">Chờ xử lý</SelectItem>
                     <SelectItem value="assigned">Đã gán</SelectItem>
-                    <SelectItem value="supporting">Đang hỗ trợ</SelectItem>
-                    <SelectItem value="done">Hoàn thành</SelectItem>
+                    <SelectItem value="supporting">Retake</SelectItem>
+                    <SelectItem value="done">Đã support</SelectItem>
                     <SelectItem value="failed">Thất bại</SelectItem>
                     <SelectItem value="cancelled">Đã hủy</SelectItem>
                   </SelectContent>

@@ -1,6 +1,6 @@
 export type ProcessStatus = 'pending' | 'assigned' | 'supporting' | 'done' | 'failed' | 'cancelled';
 export type KeyType = 'by_day' | 'by_term';
-export type ExamType = 'PE' | 'FE';
+export type ExamType = 'PE' | 'FE' | 'RETAKE_PE' | 'RETAKE_FE';
 export type KeyStatus = 'available' | 'used';
 export type Term = 'Spring26' | 'Summer26' | 'Fall26';
 

@@ -14,19 +14,21 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 import { ImportExcelDialog } from '@/components/ImportExcelDialog';
 
+type SessionType = 'PE' | 'FE' | 'RETAKE_PE' | 'RETAKE_FE';
+
 interface SessionData {
   _id: string;
   date: string;
   startTime: string;
   endTime: string;
-  type: 'PE' | 'FE';
+  type: SessionType;
   subjectId: string;
   term: string;
   campus: string;
   studentCount: number;
 }
 
-const emptySession = { date: '', startTime: '', endTime: '', type: 'PE' as const, subjectId: '', term: 'Spring26', campus: '', studentCount: 0 };
+const emptySession = { date: '', startTime: '', endTime: '', type: 'PE' as SessionType, subjectId: '', term: currentTermId || 'Spring26', campus: '', studentCount: 0 };
 
 const sessionColumns = [
   { key: 'date', label: 'Date', required: true },
@@ -54,6 +56,9 @@ export default function ExamSessionsPage() {
     queryKey: ['terms'],
     queryFn: () => api.get('/terms').then(r => r.data),
   });
+
+  // Determine current term (the one marked isCurrent=true, or first term if none set)
+  const currentTermId = terms.find((t: any) => t.isCurrent)?.termId || terms[0]?.termId || '';
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.post('/sessions', data),
@@ -205,11 +210,13 @@ export default function ExamSessionsPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Type</Label>
-                <Select value={editSession.type} onValueChange={v => setEditSession({ ...editSession, type: v as 'PE' | 'FE' })}>
+                <Select value={editSession.type} onValueChange={v => setEditSession({ ...editSession, type: v as any })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="PE">PE</SelectItem>
                     <SelectItem value="FE">FE</SelectItem>
+                    <SelectItem value="RETAKE_PE">PE RETAKE</SelectItem>
+                    <SelectItem value="RETAKE_FE">FE RETAKE</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

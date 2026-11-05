@@ -83,7 +83,8 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     for (const dateItem of dates) {
       for (const subjectItem of dateItem.subjects) {
         for (const et of subjectItem.examTypes) {
-          const sessionType = (et.type === 'FE' || et.type === 'RETAKE_FE') ? 'FE' : 'PE';
+          // Keep RETAKE_* types distinct so retake students are not merged into regular FE/PE sessions
+          const sessionType = et.type;
 
           // Try to find matching ExamSession
           let session = await ExamSession.findOne({
@@ -117,8 +118,8 @@ router.post('/', async (req: AuthRequest, res: Response) => {
             await session.save();
           }
 
-          // FE slots get default supportPrice (fallback to 200000), PE slots get null
-          const defaultSupportPrice = sessionType === 'FE' ? (pricing.feSlotPrice || 200000) : null;
+          // Only regular FE slots get the default supportPrice; PE/RETAKE slots get 0 (admin adjusts later)
+          const defaultSupportPrice = et.type === 'FE' ? (pricing.feSlotPrice || 200000) : 0;
 
           // Create the flat Registration record
           await Registration.create({
@@ -301,11 +302,11 @@ router.post('/normalize-student-ids', requireAuth, async (req: AuthRequest, res:
 
 // ──────────────────────────────────────────────────
 // GET /tool-registrations/summary
-// Tổng hợp tài chính gộp theo MSSV
+// Tổng hợp tài chính - có thể lọc theo học kỳ (term)
 // ──────────────────────────────────────────────────
 router.get('/summary', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { search } = req.query;
+    const { search, term } = req.query;
     const filter: any = {};
     if (search) {
       filter.$or = [
@@ -314,8 +315,20 @@ router.get('/summary', requireAuth, async (req: AuthRequest, res: Response) => {
       ];
     }
 
-    const allToolRegs = await ToolRegistration.find(filter).sort({ createdAt: -1 }).lean();
+    // Nếu có filter term, lấy exam sessions của kì đó
+    const termFilter = term ? { term: String(term) } : {};
+    const allSessions = await ExamSession.find(termFilter).lean();
+    const sessionMap: Record<string, any> = {};
+    for (const s of allSessions) {
+      sessionMap[s._id.toString()] = s;
+    }
+
     const allRegs = await Registration.find({}).lean();
+
+    const sessionMap: Record<string, any> = {};
+    for (const s of allSessions) {
+      sessionMap[s._id.toString()] = s;
+    }
 
     // Map child Registrations by toolRegistrationId
     const childrenByParentId: Record<string, any[]> = {};
@@ -342,13 +355,34 @@ router.get('/summary', requireAuth, async (req: AuthRequest, res: Response) => {
       // Sắp xếp theo createdAt ASC để lấy thông tin
       regs.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-      // Tính toolFee
-      let toolFee = 0;
-      let hasCountedTerm = false;
+      // Lấy các registration IDs và exam session IDs
       const allRegIds: string[] = [];
-
+      const regExamSessions: Record<string, string> = {}; // regId -> sessionId term
       for (const reg of regs) {
         allRegIds.push(reg._id.toString());
+        // Get the exam session for this registration to determine its term
+        const session = sessionMap[reg.examSessionId?.toString() || ''];
+        if (session) {
+          regExamSessions[reg._id.toString()] = session.term || '';
+        }
+      }
+
+      // FILTER: Only include registrations that match the term filter
+      const filteredRegs: any[] = [];
+      for (const reg of regs) {
+        const regTerm = regExamSessions[reg._id.toString()] || '';
+        if (!term || regTerm === String(term)) {
+          filteredRegs.push(reg);
+        }
+      }
+
+      // Tính toolFee (chỉ cho các registrations khớp với term filter)
+      let toolFee = 0;
+      let hasCountedTerm = false;
+      const filteredRegIds: string[] = [];
+
+      for (const reg of filteredRegs) {
+        filteredRegIds.push(reg._id.toString());
         if (reg.toolPackage === 'day') {
           toolFee += reg.priceSnapshot?.toolPrice || 0;
         } else if (reg.toolPackage === 'term' && !hasCountedTerm) {
@@ -357,21 +391,34 @@ router.get('/summary', requireAuth, async (req: AuthRequest, res: Response) => {
         }
       }
 
-      // Tính supportFee từ child Registrations
+      // Tính supportFee từ child Registrations (chỉ cho các session khớp term)
       let supportFee = 0;
-      for (const parentId of allRegIds) {
+      for (const parentId of filteredRegIds) {
         const children = childrenByParentId[parentId] || [];
         for (const child of children) {
-          if (child.processStatus !== 'failed' && child.processStatus !== 'cancelled') {
-            supportFee += child.supportPrice || 0;
+          const session = child.examSessionId ? sessionMap[child.examSessionId.toString()] : null;
+          const sessionType = session?.type;
+          // Loại bỏ RETAKE và chỉ tính supportFee cho PE/FE cùng kì được filter
+          if (sessionType === 'RETAKE_FE' || sessionType === 'RETAKE_PE') {
+            continue;
           }
+          // Chỉ cộng supportFee nếu session khớp term filter (hoặc không có filter)
+          if (term && session?.term !== String(term)) {
+            continue;
+          }
+          supportFee += child.supportPrice || 0;
         }
       }
 
-      // Discount: lấy adminDiscount lớn nhất trong nhóm
-      const discount = Math.max(...regs.map((r: any) => r.adminDiscount || 0));
+      // Discount: lấy adminDiscount lớn nhất trong tất cả regs của sinh viên
+      // Sử dụng filteredRegs để đồng nhất với toolFee/supportFee khi có term filter
+      const discount = filteredRegs.length > 0 ? Math.max(...filteredRegs.map((r: any) => r.adminDiscount || 0)) : 0;
       const totalServiceFee = toolFee + supportFee - discount;
-      const amountReceived = regs.reduce((sum: number, r: any) => sum + (r.amountReceived || 0), 0);
+      const amountReceived = filteredRegIds.length > 0 ? Math.max(...filteredRegIds.map((id: string) => {
+        // Tìm amountReceived từ children registrations
+        const childRegs = childrenByParentId[id] || [];
+        return childRegs.reduce((sum: number, c: any) => sum + (c.amountReceived || 0), 0);
+      }) || 0) : 0;
       const debt = Math.max(totalServiceFee - amountReceived, 0);
 
       // Thông tin student từ bản ghi mới nhất
@@ -426,7 +473,7 @@ router.get('/summary', requireAuth, async (req: AuthRequest, res: Response) => {
 // ──────────────────────────────────────────────────
 router.put('/summary/:studentId', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const targetStudentId = req.params.studentId.toUpperCase();
+    const targetStudentId = String(req.params.studentId).toUpperCase();
     const { discount, amountReceived, note } = req.body;
 
     // Tìm tất cả ToolRegistration của sinh viên này
@@ -501,11 +548,31 @@ router.get('/:id/quote', async (req, res) => {
 
     const regsData = await Registration.find({
       toolRegistrationId: req.params.id,
-      processStatus: { $nin: ['failed', 'cancelled'] }
     }).lean();
 
-    const supportFee = regsData.reduce((sum, r) => sum + (r.supportPrice || 0), 0);
-    const discount = reg.priceSnapshot?.discountEnabled ? (reg.priceSnapshot?.discountAmount || 0) : 0;
+    const allSessions = typeof ExamSession.find === 'function' ? await ExamSession.find({}).lean() : [];
+    const sessionMap: Record<string, any> = {};
+    for (const s of allSessions) {
+      sessionMap[s._id.toString()] = s;
+    }
+
+    const supportFee = regsData.reduce((sum, r) => {
+      const session = r.examSessionId ? sessionMap[r.examSessionId.toString()] : null;
+      const sessionType = session?.type;
+      if (sessionType === 'RETAKE_FE' || sessionType === 'RETAKE_PE') {
+        return sum;
+      }
+      return sum + (r.supportPrice || 0);
+    }, 0);
+    const promoDiscount = reg.priceSnapshot?.discountEnabled ? (reg.priceSnapshot?.discountAmount || 0) : 0;
+
+    // Admin discount is tracked per student (max across all regs, mirroring /summary)
+    const studentRegs = await ToolRegistration.find({
+      studentId: reg.studentId.toUpperCase(),
+    }).lean();
+    const adminDiscount = studentRegs.reduce((max, r: any) => Math.max(max, r.adminDiscount || 0), 0);
+    const discount = promoDiscount + adminDiscount;
+
     const toolFee = reg.priceSnapshot?.toolPrice || 0;
 
     res.json({

@@ -15,6 +15,7 @@ interface Term {
   _id: string;
   termId: string;
   name: string;
+  isCurrent: boolean;
 }
 
 export default function TermsPage() {
@@ -22,7 +23,8 @@ export default function TermsPage() {
   const [showDialog, setShowDialog] = useState(false);
   const [editTerm, setEditTerm] = useState<Term | null>(null);
   const [termId, setTermId] = useState('');
-  const [name, setName] = useState('');
+  const [name, setName] = useState '';
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: terms = [], isLoading } = useQuery({
     queryKey: ['terms'],
@@ -57,6 +59,19 @@ export default function TermsPage() {
     },
     onError: () => toast.error('Failed to delete term'),
   });
+
+  const setCurrentMutation = useMutation({
+    mutationFn: (id: string) => api.put(`/terms/${id}`, { isCurrent: true }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['terms'] });
+      toast.success('Học kỳ hiện tại đã được cập nhật');
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to set current term'),
+  });
+
+  const setCurrentTerm = (termId: string) => {
+    setCurrentMutation.mutate(termId);
+  };
 
   const openNew = () => {
     setEditTerm(null);
@@ -127,6 +142,15 @@ export default function TermsPage() {
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteMutation.mutate(t._id)}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
+                          {t.isCurrent ? (
+                            <Button variant="default" size="icon" className="h-8 w-8" title="Đã là học kỳ hiện tại">
+                              <span className="w-4 h-4" />
+                            </Button>
+                          ) : (
+                            <Button variant="default" size="icon" className="h-8 w-8" onClick={() => setCurrentTerm(t._id)} title="Set as current term">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

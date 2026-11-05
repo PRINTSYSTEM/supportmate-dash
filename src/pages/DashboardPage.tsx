@@ -31,9 +31,17 @@ export default function DashboardPage() {
   const [selectedMetricDate, setSelectedMetricDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [showFilters, setShowFilters] = useState(false);
 
+  const { data: terms = [] } = useQuery({
+    queryKey: ['terms'],
+    queryFn: () => api.get('/terms').then(r => r.data),
+  });
+
+  // Determine effective term: if user selected a term, use it; otherwise use current term
+  const effectiveTerm = term || terms.find((t: any) => t.isCurrent)?.termId || '';
+
   const { data: stats, isLoading } = useQuery<Stats>({
-    queryKey: ['dashboard-stats', dateFrom, dateTo],
-    queryFn: () => api.get('/dashboard/stats', { params: { dateFrom, dateTo } }).then(r => r.data),
+    queryKey: ['dashboard-stats', dateFrom, dateTo, effectiveTerm],
+    queryFn: () => api.get('/dashboard/stats', { params: { dateFrom, dateTo, term: effectiveTerm } }).then(r => r.data),
   });
 
   const { data: terms = [] } = useQuery({
@@ -56,8 +64,8 @@ export default function DashboardPage() {
     { title: 'Tổng đăng ký', value: stats?.totalRegistrations ?? 0, icon: ClipboardList, color: 'text-primary' },
     { title: 'Ca thi hôm nay', value: stats?.sessionsToday ?? 0, icon: Calendar, color: 'text-accent' },
     { title: 'Chờ xử lý', value: stats?.pending ?? 0, icon: Clock, color: 'text-[hsl(25,95%,53%)]' },
-    { title: 'Hoàn thành', value: stats?.completed ?? 0, icon: CheckCircle2, color: 'text-[hsl(142,71%,45%)]' },
-    { title: 'Doanh thu', value: stats?.totalRevenue ? formatVND(stats.totalRevenue) : '0 ₫', icon: DollarSign, color: 'text-[hsl(142,71%,45%)]' },
+    { title: 'Đã support', value: stats?.completed ?? 0, icon: CheckCircle2, color: 'text-[hsl(142,71%,45%)]' },
+    { title: 'Doanh thu Support', value: stats?.totalRevenue ? formatVND(stats.totalRevenue) : '0 ₫', icon: DollarSign, color: 'text-[hsl(142,71%,45%)]' },
     { title: 'FE / PE', value: `${stats?.feRegistrations ?? 0} / ${stats?.peRegistrations ?? 0}`, icon: ClipboardList, color: 'text-primary' },
   ];
 
@@ -122,6 +130,8 @@ export default function DashboardPage() {
                   <SelectItem value="all">Tất cả loại thi</SelectItem>
                   <SelectItem value="PE">PE</SelectItem>
                   <SelectItem value="FE">FE</SelectItem>
+                  <SelectItem value="RETAKE_PE">PE RETAKE</SelectItem>
+                  <SelectItem value="RETAKE_FE">FE RETAKE</SelectItem>
                 </SelectContent>
               </Select>
               <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36" placeholder="Từ ngày" />
